@@ -1,0 +1,16 @@
+name: llm-cognition
+
+channels: 
+  - pytorch
+  - conda-forge
+
+dependencies: 
+  - python=3.10
+  - pip
+  - matplotlib
+  - pandas
+  - jupyter
+  - pytorch
+  - cudatoolkit=11.5
+  - pip: 
+    - pytorch-pretrained-bert
