@@ -44,15 +44,44 @@ def next_word(sentence, nmax=50257):
 	return {i[0]: i[1]/divisor for i in pw}
 
 # test on sentence  
-sentence = 'I love to party slowly and delicately.'
+original_sentence = 'I love to party slowly and delicately.'
 # split sentence and keep leading spaces and separate punctuation (is this what we want?)
-sentence_list = re.findall(r'(\s*\w+|\s*\.)', sentence)
+sentence_list = re.findall(r'(\s*\w+|\s*\.)', original_sentence)
 # get next word probability for each word in sentence
 pdict={}
-for token in range(len(sentence_list)-1): 
-    pdist=next_word(sentence_list[token])
-    pnext=pdist.get(sentence_list[token+1])
-    pdict[sentence_list[token+1]]=pnext
+running_sentence = ""
+for i in range(len(sentence_list)-1): 
+    running_sentence += sentence_list[i]
+    print(running_sentence)
+    pdist=next_word(running_sentence)
+    pnext=pdist.get(sentence_list[i+1])
+    pdict[sentence_list[i+1]]=pnext
+
+pdist = next_word("I love to party slowly and")
+words = [x for x, y in pdist.items()]
+words = [x for x in words if x == ' delicately']
+
+
+# encode sentence
+sentence = "I love to arrange things" 
+context_tokens = enc.encode(sentence)
+# limit context to 1023 tokens (why?)
+if (len(context_tokens) > 1023): 
+	context_tokens=context_tokens[-1023:]
+	print(sentence)
+	print(context_tokens)
+# context (not quite sure what this is)
+context = torch.tensor(context_tokens, device=device, dtype=torch.long).unsqueeze(0)
+# compute logits for next word
+with torch.no_grad():
+	logits, _ = model(context, past=None)
+logits=F.softmax(logits[:, -1, :], dim=-1)
+# get the decoded words and logits
+pw=zip([enc.decode([i]) for i in range(logits[0].size()[0])], logits[0].tolist())
+pw=sorted(pw, key = lambda x: -x[1])
+words = [x for x, y in pw]
+words = [x for x in words if x == ' delicately']
+words
 
 ## not clear to me what this is for ## 
 def how_likely_terminal(sentence):
