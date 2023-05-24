@@ -44,7 +44,7 @@ def next_word(sentence, nmax=50257):
 	return {i[0]: i[1]/divisor for i in pw}
 
 # test on sentence  
-original_sentence = 'I love to party slowly and delicately.'
+original_sentence = 'Anyone else only feel happy when they are asleep and the minute you wake up you remember how much you hate your life and instantly feel like your soul is filled with cement?'
 # split sentence and keep leading spaces and separate punctuation (is this what we want?)
 sentence_list = re.findall(r'(\s*\w+|\s*\.)', original_sentence)
 # get next word probability for each word in sentence
@@ -57,9 +57,11 @@ for i in range(len(sentence_list)-1):
     pnext=pdist.get(sentence_list[i+1])
     pdict[sentence_list[i+1]]=pnext
 
-pdist = next_word("I love to party slowly and")
-words = [x for x, y in pdist.items()]
-words = [x for x in words if x == ' delicately']
+# quick plot
+import matplotlib.pyplot as plt 
+fig, ax = plt.subplots()
+plt.plot(pdict.values())
+plt.xticks(range(len(pdict)), pdict.keys(), rotation=90)
 
 
 # encode sentence
@@ -75,13 +77,14 @@ context = torch.tensor(context_tokens, device=device, dtype=torch.long).unsqueez
 # compute logits for next word
 with torch.no_grad():
 	logits, _ = model(context, past=None)
+logits.shape
 logits=F.softmax(logits[:, -1, :], dim=-1)
+logits.shape
 # get the decoded words and logits
 pw=zip([enc.decode([i]) for i in range(logits[0].size()[0])], logits[0].tolist())
 pw=sorted(pw, key = lambda x: -x[1])
 words = [x for x, y in pw]
 words = [x for x in words if x == ' delicately']
-words
 
 ## not clear to me what this is for ## 
 def how_likely_terminal(sentence):

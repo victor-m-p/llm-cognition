@@ -14,3 +14,6 @@ dependencies:
   - cudatoolkit=11.5
   - pip: 
     - pytorch-pretrained-bert
+    - pyllama 
+    - transformers 
+    - llama-cpp-python
