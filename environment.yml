@@ -11,8 +11,11 @@ dependencies:
   - pandas
   - jupyter
   - pytorch
-  - cudatoolkit=11.5
+  - cudatoolkit=11.7
   - pip: 
+    #- torch 
+    #- torchvision 
+    #- torchaudio 
     - pytorch-pretrained-bert
     - pyllama 
     - transformers 
