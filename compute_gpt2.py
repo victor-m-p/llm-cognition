@@ -9,9 +9,9 @@ import scipy
 import pandas as pd 
 import re 
 from tqdm import tqdm
-import json
 from pytorch_pretrained_bert import GPT2LMHeadModel, GPT2Tokenizer
-
+print(torch.__version__) 
+print(torch.version.cuda)
 # setup 
 document_path = 'data'
 figure_path = 'fig'
@@ -19,11 +19,17 @@ document_name = 'ted_chiang_hell_absence'
 
 # device setup
 device=torch.device('cuda:0')
-enc = GPT2Tokenizer.from_pretrained('gpt2')
+enc = GPT2Tokenizer.from_pretrained('gpt2') 
 model = GPT2LMHeadModel.from_pretrained('gpt2')
 model.to(device)
 model.eval()
 
+context = enc.encode("I am")
+context = torch.tensor(context, device=device, dtype=torch.long).unsqueeze(0)
+with torch.no_grad():
+    for _ in range(1000):
+        logits, _ = model(context, past=None)
+    
 # key function 
 def p_next_token(sentence, nmax=50257):
     # encode sentence
@@ -153,4 +159,3 @@ ax2.scatter(df.index, df['entropy'], color='tab:orange', s=15)
 # Show the plot
 plt.tight_layout()
 plt.savefig(f'{figure_path}/{document_name}_-p_token_entropy.png', dpi=300)
-

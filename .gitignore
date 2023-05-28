@@ -1,3 +1,6 @@
 openai-quickstart-python/creds.py
 llama.cpp
 openai-quickstart-python
+models
+cppenv
+llama-cpp-python
