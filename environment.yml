@@ -7,16 +7,17 @@ channels:
 dependencies: 
   - python=3.10
   - pip
-  - matplotlib
-  - pandas
-  - jupyter
+  #- matplotlib
+  #- pandas
+  #- jupyter
   - pytorch
   - cudatoolkit=11.7
   - pip: 
     #- torch 
     #- torchvision 
     #- torchaudio 
-    - pytorch-pretrained-bert
+    #- pytorch-pretrained-bert
     - pyllama 
     - transformers 
-    - llama-cpp-python
+    - scikit-build
+    #- llama-cpp-python
