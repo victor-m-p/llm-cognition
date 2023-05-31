@@ -23,7 +23,13 @@ model = AutoModelForCausalLM.from_pretrained(f"{checkpoint}")
 model = model.to(device)
 
 # checking things: 
-inputs = tokenizer("Hello, my dog is cute", return_tensors="pt").to(device)
+inputs = tokenizer("Hello, my dog is cute", 
+                   return_tensors="pt").to(device)
+
+# input ids
+inputs.input_ids 
+inputs.tokens() # interesting 
+
 outputs = model(**inputs, 
                 labels=inputs["input_ids"], # gives us loss
                 output_hidden_states=True, # gives us hidden states
@@ -37,7 +43,10 @@ outputs.logits.shape # logits
 outputs.loss.shape # loss
 
 # hidden states
-outputs.hidden_states[12].shape # (1, 6, 768) x 13 layers 
+outputs.hidden_states[12].shape # (1, 6, 768) x 13 
+# 768 = n_embed
+# second element is length of sequence (e.g. depends on input)
+# 13 = n_layers + 1
 
 # last hidden state 
 outputs.last_hidden_state.shape # nope
@@ -53,6 +62,7 @@ outputs.attentions[11].shape # (1, 12, 6, 6)
 # checking model
 model.eval() # 
 model.num_parameters() # 124,439,808
+model.config
 
 
 ''' Questions: 
