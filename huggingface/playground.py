@@ -1,5 +1,6 @@
 '''
 python gpt2.py -i data_input/ -o data_output/
+checking the tokenizer and model object. 
 '''
 
 import re 
@@ -18,7 +19,7 @@ checkpoint = 'gpt2'
 
 # imports and setup for huggingface
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-tokenizer = AutoTokenizer.from_pretrained(f"{checkpoint}")
+tokenizer = AutoTokenizer.from_pretrained(f"{checkpoint}") #output_hidden_states=True
 model = AutoModelForCausalLM.from_pretrained(f"{checkpoint}")
 model = model.to(device)
 
@@ -30,7 +31,7 @@ inputs = tokenizer("Hello, my dog is cute",
 inputs.input_ids 
 inputs.tokens() # interesting 
 
-outputs = model(**inputs, 
+outputs = model(**inputs, # what exactly does this unpack?
                 labels=inputs["input_ids"], # gives us loss
                 output_hidden_states=True, # gives us hidden states
                 output_attentions=True # gives us attentions
