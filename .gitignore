@@ -6,3 +6,4 @@ openai-quickstart-python
 models
 cppenv
 llama-cpp-python
+gpt/.env
