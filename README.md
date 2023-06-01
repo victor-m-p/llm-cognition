@@ -9,7 +9,7 @@ bash create_venv.sh
 source hugenv/bin/activate
 ```
 
-now we can e.g. run the pipeline which gives probabilities and entropy of sentence
+now we can e.g. run the pipeline which gives probabilities and entropy of document
 ```bash
 python probability_name_main.py -i data_input/ -o data_output 
 ```
