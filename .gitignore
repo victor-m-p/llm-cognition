@@ -7,3 +7,4 @@ models
 cppenv
 llama-cpp-python
 gpt/.env
+gpt/gptenv
