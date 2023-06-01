@@ -4,9 +4,21 @@ Parts of the code will require modification to run on other OS and graphics.
 
 ## HuggingFace pipeline
 ```bash
-bash venv_hugging.sh
+cd huggingface
+bash create_venv.sh
 source hugenv/bin/activate
-python pipeline.py -i data_input/ -o data_output
+```
+
+now we can e.g. run the pipeline which gives probabilities and entropy of sentence
+```bash
+python probability_name_main.py -i data_input/ -o data_output 
+```
+
+## GPT pipeline
+```bash
+cd gpt
+bash create_venv.sh
+source gptenv/bin/activate
 ```
 
 ## 4-bit Quantized local (LLaMA) pipeline
