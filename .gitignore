@@ -8,3 +8,4 @@ cppenv
 llama-cpp-python
 gpt/.env
 gpt/gptenv
+Easy-Transformer/easyenv
