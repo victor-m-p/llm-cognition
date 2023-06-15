@@ -1,6 +1,7 @@
 '''
 https://huggingface.co/sentence-transformers/all-MiniLM-L12-v2
 testing sBERT embeddings. 
+probably legacy at this point
 '''
 
 import json 
