@@ -1,3 +1,4 @@
+# still extremely constrained
 import openai 
 import os 
 import matplotlib.pyplot as plt 
@@ -6,26 +7,65 @@ import pandas as pd
 import numpy as np 
 import requests 
 from dotenv import load_dotenv
+import json 
 
 load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-prompt = 'Sam is 30 years old, and has a close friend, Harry, who is struggling in life. Harry has problems with addiction, and often feels lonely and unappreciated. Harry wants to get better, but is not doing as well as he could be given his innate abilities. Sam sets a goal of helping Harry become a happier and more thriving person. The first thing Sam could do is to'
+# load vignettes
+with open('../huggingface/data_input/phillips2017.json') as user_file:
+  phillips2017 = json.load(user_file)
+phillips_context = [phillips2017[key]['vignette'] for key in phillips2017.keys()]
 
-# this gives actually good results
-openai.Completion.create(
-  model="text-davinci-003",
-  prompt=prompt,
-  max_tokens=30, # for completion (not including prompt)
-  temperature=1, # (0, 1)
-  logprobs=5 # the maximum 
-)
+def ensure_punctuation_and_space(s):
+    if not s.endswith('.'):
+        s = s + '.'
+    return s + ' '
 
-## very constrained possibility space here it seems (surprised that even highest temperature is so narrow).
-## perhaps there are some tricky things where it is just only allowed to give very general and vague advice. 
-## this would actually be super interesting; i.e. if these models are now so constrained as to be unhelpful. 
-# temperature=0: listen to Harry and be a supportive friend. He can encourage Harry to talk about his feelings and provide a safe space for him to express himself. Sam
-# temperature=0.5: listen to Harry and provide emotional support. He could encourage Harry to seek help from a professional, such as a therapist or addiction counselor. He could also
-# temperature=1: listen to and support Harry. He can be available to talk to Harry about his issues and provide emotional and psychological support to his friend. Sam can also
+import re
 
-## should test this against the LLaMA model that we have. 
+def get_first_sentence(s):
+    match = re.search(r"([^.!?]*[.!?])", s)
+    return match.group(0).strip() if match else ""
+
+phillips_context = [ensure_punctuation_and_space(s) for s in phillips_context]
+
+# create would and should condition
+gender_pattern = [' he', ' he', ' he', ' she', ' she', ' he']
+starting_pattern = 'One thing that'
+condition_dict = {'could': ' could do is to', 'should': ' should do is to'}
+
+# create inputs
+all_contexts = []
+for context, gender in zip(phillips_context, gender_pattern):
+    starting_string = context + starting_pattern + gender 
+    for key, val in condition_dict.items():
+        full_string = starting_string + val
+        all_contexts.append((key, full_string))
+
+num_generations = 10
+max_tokens = 50 # sentences typically < 30 tokens
+results = {}
+for pairs in all_contexts: 
+    condition, prompt = pairs 
+    generation_list = []
+    for i in range(num_generations): 
+        completion = openai.Completion.create(
+          model="text-davinci-003",
+          prompt=prompt,
+          max_tokens=100, 
+          temperature=1, 
+          n=1,
+          stop=['.', '?', '!']) # stop at first period 
+        text = completion['choices'][0]['text']
+        #text = get_first_sentence(text)
+        generation_list.append(text)
+    results[prompt] = {}
+    results[prompt][condition] = generation_list
+
+# issues: 
+## 1. sometimes a sentence (e.g. with a comma) actually gives two answers
+
+# save 
+with open(f'data/text-davinci-003_phillips2017_n{num_generations}_could_should.json', 'w') as f:
+  json.dump(results, f)
