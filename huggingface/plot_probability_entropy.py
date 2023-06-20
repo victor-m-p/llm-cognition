@@ -31,9 +31,12 @@ word_list = []
 match_list = []
 probability_list = []
 entropy_list = []
-index_list = []
+sentence_index_list = []
+token_index_list = []
 
-for outer_key in sorted(probability_entropy.keys()):
+probability_entropy.keys()
+
+for outer_key in probability_entropy.keys():
     inner_values = probability_entropy[outer_key].values()
     inner_word = [value[0] for value in inner_values]
     inner_match = [value[1] for value in probability_entropy[outer_key].values()]
@@ -44,10 +47,12 @@ for outer_key in sorted(probability_entropy.keys()):
     match_list.append(inner_match)
     probability_list.append(inner_probability)
     entropy_list.append(inner_entropy)
-    index_list.append([outer_key for _ in range(len(inner_values))])
+    sentence_index_list.append([outer_key for _ in range(len(inner_values))])
+    token_index_list.append([i for i in range(len(inner_values))])
 
 df_values = pd.DataFrame(
-    {'index': [int(item) for sublist in index_list for item in sublist],
+    {'sentence_index': [int(item) for sublist in sentence_index_list for item in sublist],
+     'token_index': [int(item) for sublist in token_index_list for item in sublist],
      'word': [item for sublist in word_list for item in sublist],
      'match': [item for sublist in match_list for item in sublist],
      'probability': [item for sublist in probability_list for item in sublist],
@@ -65,11 +70,12 @@ df_context = pd.DataFrame({
     'context': context_lst,
     'condition': conditions_lst
 })
-df_context['index'] = df_context.index
+df_context['sentence_index'] = df_context.index
 df_context['context'] = df_context['context'].str.split().str[0]
 
 # master dataframe
-df_master = pd.merge(df_values, df_context, on='index')
+df_master = pd.merge(df_values, df_context, on='sentence_index')
+df_master = df_master.sort_values(by=['sentence_index', 'token_index'])
 
 # quick calculations
 ## really looks like it is just exactly the same for the mean
@@ -85,9 +91,31 @@ df_agg = df_master.groupby(['context', 'condition']).agg(
 ## also these are already logprobs 
 ## not quite sure what makes sense here?
 
+##### POS #####
+sentence_list = [["".join(sublst)] for sublst in word_list]
 
+from transformers import pipeline
 
+classifier = pipeline("token-classification", model = "vblagoje/bert-english-uncased-finetuned-pos")
+classification_list = [classifier(sentence) for sentence in sentence_list]
+word_entity_list = [[(sentence_idx, token_idx, item['word'], item["entity"]) for token_idx, item in enumerate(inner_list[0])] for sentence_idx, inner_list in enumerate(classification_list)]
+word_ent_df = pd.DataFrame([item for sublist in word_entity_list for item in sublist], 
+                           columns=['sentence_index', 'word_index_pos', 'word_strip', 'entity'])
+ 
+# try to merge
+# need to strip whitespace
+# some trouble here with combining data 
+df_master['word_strip'] = df_master['word'].apply(lambda x: x.strip())
+df_word_ent = pd.merge(df_master, word_ent_df, on=['sentence_index', 'word_strip'])
 
+df_word_ent.groupby(['entity']).agg(
+    {'probability': ['mean', 'std', 'min', 'max', 'median'],
+     'entropy': ['mean', 'std', 'min', 'max', 'median']})
+
+### sorted differently ... ### 
+word_ent_df[word_ent_df['sentence_index'] == 118]
+df_word_ent[df_word_ent['sentence_index'] == 118]
+df_master[df_master['sentence_index'] == 118]
 
 # Create a new figure and an axes
 fig, ax1 = plt.subplots(figsize=(40, 6), dpi=300)
