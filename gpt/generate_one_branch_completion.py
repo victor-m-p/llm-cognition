@@ -31,22 +31,37 @@ prompts = ['One thing that Heinz could do is to',
            'One thing that Mary could do is to',
            'One thing that Brad could do is to']
 
-num_generations = 4
-temperature = 1 # we should probably try with 0.5 (which I think is default)
+def generate_completions_batched(vignettes, prompts, num_generations, temperature):
+    contexts = [background + prompt for background, prompt in zip(vignettes, prompts)]
+    generation_dict = {}
+    for num, context in tqdm(enumerate(contexts)): 
+        completion = openai.Completion.create(
+          model="text-davinci-003",
+          prompt=context,
+          stop=['.', '?', '!', '\n\n'],
+          temperature=temperature,
+          n=num_generations
+          )
+        generation_list = [completion['choices'][num]['text'] for num in range(num_generations)]
+        generation_dict['context_' + str(num)] = {}
+        generation_dict['context_' + str(num)]['vignette'] = vignettes[num]
+        generation_dict['context_' + str(num)]['prompt'] = prompts[num]
+        generation_dict['context_' + str(num)]['generation'] = generation_list
+    return generation_dict
 
-def generate_completions(vignettes, prompts, num_generations, temperature):
+def generate_completions_sequential(vignettes, prompts, num_generations, temperature):
     contexts = [background + prompt for background, prompt in zip(vignettes, prompts)]
     generation_dict = {}
     for num, context in tqdm(enumerate(contexts)): 
         generation_list = []
         for _ in range(num_generations):
             completion = openai.Completion.create(
-                model="text-davinci-003",
-                prompt=context,
-                max_tokens=200, 
-                temperature=temperature, 
-                n=1, # seem more similar when generated at once so generating one at a time
-                stop=['.', '?', '!', '\n\n']) 
+              model="text-davinci-003",
+              prompt=context,
+              stop=['.', '?', '!', '\n\n'],
+              temperature=temperature,
+              n=1
+              )
             text = completion['choices'][0]['text']
             generation_list.append(text)
         generation_dict['context_' + str(num)] = {}
@@ -55,22 +70,8 @@ def generate_completions(vignettes, prompts, num_generations, temperature):
         generation_dict['context_' + str(num)]['generation'] = generation_list
     return generation_dict
 
-completion = openai.Completion.create(
-    model='text-davinci-003',
-    prompt='I',
-    max_tokens=200,
-    temperature=1,
-    n=3,
-    stop=['.', '?', '!', '\n\n']) 
-
-
-
-generation_dict_05 = generate_completions(vignettes, prompts, num_generations, 0.5)
-
-
-# issues: 
-## 1. sometimes a sentence (e.g. with a comma) actually gives two answers
-
-# save 
-with open(f'data/text-davinci-003_phillips2017_mary_branches.json', 'w') as f:
-  json.dump(list_sentence_context, f)
+temperature_grid = [0.5, 1.0]
+for temperature in temperature_grid: 
+    generation_dict = generate_completions_batched(vignettes, prompts, 100, temperature)
+    with open(f'data/phillips2017_text-davinci-003_n100_temp{temperature}_batched.json', 'w') as fp:
+        json.dump(generation_dict, fp)

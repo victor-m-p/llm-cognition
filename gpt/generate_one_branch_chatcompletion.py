@@ -31,7 +31,7 @@ prompts = ['What is one thing that Heinz could do?',
            'What is one thing that Brad could do?']
 contexts = [background + prompt for background, prompt in zip(vignettes, prompts)]
 
-def generate_completions(vignettes, prompts, num_generations, temperature):
+def generate_completions_batched(vignettes, prompts, num_generations, temperature):
     contexts = [background + prompt for background, prompt in zip(vignettes, prompts)]
     generation_dict = {}
     for num, context in tqdm(enumerate(contexts)): 
@@ -49,9 +49,39 @@ def generate_completions(vignettes, prompts, num_generations, temperature):
         generation_dict['context_' + str(num)]['generation'] = generation_list
     return generation_dict
 
+def generate_completions_sequential(vignettes, prompts, num_generations, temperature):
+    contexts = [background + prompt for background, prompt in zip(vignettes, prompts)]
+    generation_dict = {}
+    for num, context in tqdm(enumerate(contexts)): 
+        generation_list = []
+        for _ in range(num_generations):
+            completion = openai.ChatCompletion.create(
+              model="gpt-3.5-turbo",
+              messages=[{"role": "user", "content": context}],
+              stop=['.', '?', '!', '\n\n'],
+              temperature=temperature,
+              n=1
+              )
+            text = completion['choices'][0]['message']['content']
+            generation_list.append(text)
+        generation_dict['context_' + str(num)] = {}
+        generation_dict['context_' + str(num)]['vignette'] = vignettes[num]
+        generation_dict['context_' + str(num)]['prompt'] = prompts[num]
+        generation_dict['context_' + str(num)]['generation'] = generation_list
+    return generation_dict
+
 # run this for n=100 as a test 
+'''
 temperature_grid = [0.5, 1.0]
 for temperature in temperature_grid: 
-    generation_dict = generate_completions(vignettes, prompts, 100, temperature)
+    generation_dict = generate_completions_at_once(vignettes, prompts, 100, temperature)
     with open(f'data/phillips2017_gpt-3.5-turbo_n100_temp{temperature}.json', 'w') as fp:
+        json.dump(generation_dict, fp)
+'''
+
+# wtf ... this is ridiculous.
+temperature_grid = [0.5, 1.0]
+for temperature in temperature_grid: 
+    generation_dict = generate_completions_sequential(vignettes, prompts, 100, temperature)
+    with open(f'data/phillips2017_gpt-3.5-turbo_n100_temp{temperature}_sequential.json', 'w') as fp:
         json.dump(generation_dict, fp)
