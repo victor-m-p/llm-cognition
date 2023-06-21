@@ -1,130 +1,80 @@
 '''
 https://huggingface.co/sentence-transformers/all-MiniLM-L12-v2
-testing sBERT embeddings. 
+sBERT embeddings for could prompts.
+change condition and temperature for other conditions.
 '''
 
-from sklearn.decomposition import PCA
 import json 
-from sklearn.metrics.pairwise import cosine_distances
 import pandas as pd 
-import numpy as np 
-from transformers import AutoTokenizer, AutoModel
 import torch
 from torch.nn import functional as F
-import os 
 import seaborn as sns 
 import matplotlib.pyplot as plt
-checkpoint = 'sentence-transformers/paraphrase-MiniLM-L6-v2'
-checkpoint = 'sentence-transformers/all-MiniLM-L12-v2' 
-
-model = AutoModel.from_pretrained(checkpoint) # which model?
-tokenizer = AutoTokenizer.from_pretrained(checkpoint)
+import os 
+import glob
+from helper_functions import *
 
 # setup
-file_path = '../gpt/data'
-model_name = 'text-davinci-003'
-n='100'
-temperature='1.0'
-condition='batched'
-file_name=f'phillips2017_{model_name}_n{n}_temp{temperature}_{condition}.json'
-full_path = os.path.join(file_path, file_name)
+condition='should'
+temperature='0.5'
 
-# Mean Pooling - Take attention mask into account for correct averaging
-def mean_pooling(model_output, attention_mask):
-    token_embeddings = model_output[0] #First element of model_output contains all token embeddings
-    input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
-    return torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
+# load files
+path = f'../gpt/data/*temp{temperature}_{condition}*.json'
+list_of_files = glob.glob(path)
+list_of_files = sorted(list_of_files)
 
-with open(full_path) as user_file:
-    data_could = json.load(user_file)
+# load files
+def load_files(list_of_files, list_of_names): 
+    completion_superlist = []
+    # loop over all files in condition
+    for file in list_of_files: 
+        # load file
+        with open(file) as f: 
+            data_dictionary = json.load(f)
+        # extract the completions
+        completion_list = [[completion for completion in data_dictionary[key]['generation']] for key in data_dictionary.keys()]
+        completion_list = [item for sublist in completion_list for item in sublist]
+        completion_list = [s.strip() for s in completion_list]
+        # if names are mentioned remove them
+        for name in list_of_names: 
+            completion_list = [s.replace(name, 'X') for s in completion_list]
+        # append to generation list 
+        completion_superlist.append(completion_list)
+    #completion_superlist = [item for sublist in completion_superlist for item in sublist] 
+    return completion_superlist
 
-# observations
-## really repetitive
-## seems like there are patterns
-## try to generate this one at a time
+contexts = ['Heinz', 'Josh', 'Brian', 'Liz', 'Mary', 'Brad']
+responses_raw = load_files(list_of_files, contexts)
 
-# flatten responses
-def flatten_completions(data_dictionary): 
-    completion_list = [[completion for completion in data_dictionary[key]['generation']] for key in data_dictionary.keys()]
-    completion_list = [item for sublist in completion_list for item in sublist]
-    completion_list = [s.strip() for s in completion_list]
-    return completion_list
+# sort responses to a more useful format 
+num_ctx = len(contexts)
+num_gen_individual=int(len(responses_raw[0])/num_ctx) # number of generations per context
+num_runs=len(responses_raw) # number of times we have run the above
+responses_flattened, _ = sort_responses(responses_raw,
+                                        contexts,
+                                        num_gen_individual)
 
-completions_could = flatten_completions(data_could)
+# encode sentences (see helper_functions.py)
+encodings = encode_responses(responses_flattened)
 
-# remove names  
-list_of_names = ['Heinz', 'Josh', 'Brian', 'Liz', 'Mary', 'Brad']
-for name in list_of_names:
-    completions_could = [s.replace(name, 'X') for s in completions_could]
+# embed responses (see helper_functions.py)
+embeddings_could = embed_responses(encodings)
 
-# encode responses
-def encode_sentences(sentences):
-    encoded_input = tokenizer(sentences, 
-                              padding=True, 
-                              truncation=True, 
-                              return_tensors='pt')
-    return encoded_input
-
-encodings_could = encode_sentences(completions_could)
-
-# embed responses
-def embed_responses(encoded_input):
-    with torch.no_grad():
-        model_output = model(**encoded_input)
-    sentence_embeddings = mean_pooling(model_output, encoded_input['attention_mask'])
-    sentence_embeddings = F.normalize(sentence_embeddings, p=2, dim=1)
-    return sentence_embeddings
-
-embeddings_could = embed_responses(encodings_could)
-
-def extract_upper_triu(metric_list):
-    upper_triangle_list = []
-    for metric_group in metric_list:
-        upper_triangle_indices = np.triu_indices(metric_group.shape[0], k=1)
-        upper_triangle_values = metric_group[upper_triangle_indices]
-        upper_triangle_list.append(upper_triangle_values.tolist())
-    upper_triangle_list = [item for sublist in upper_triangle_list for item in sublist]
-    return upper_triangle_list 
-
-def calculate_metrics(sentence_embeddings, n_conditions, n_generations):
-    cosine_list = []
-    pair_list = []
-    #diam_list = []
-    for i in range(0, n_conditions*n_generations, n_generations):
-        # cosine distances
-        cos_dist = cosine_distances(sentence_embeddings[i:i+n_generations])
-        # pairwise distances
-        pair_dist = torch.cdist(sentence_embeddings[i:i+n_generations], 
-                                sentence_embeddings[i:i+n_generations])
-        # diameter
-        #diameter = torch.max(pair_dist)
-        #diam_list.append(diameter)
-        # gather metrics
-        cosine_list.append(cos_dist)
-        pair_list.append(pair_dist)
-    cosine_upper_triangle = extract_upper_triu(cosine_list)
-    pair_upper_triangle = extract_upper_triu(pair_list)
-    return cosine_upper_triangle, pair_upper_triangle
-    
-n_contexts= len(data_could.keys())
-n_generations = len(data_could[list(data_could.keys())[0]]['generation'])
-
-cosine_dist_could, euclid_dist_could = calculate_metrics(embeddings_could, n_contexts, n_generations)
+# calculate cosine and euclidean distance (see helper_functions.py)
+num_gen_total=num_gen_individual*num_runs
+cosine_dist, euclid_dist = calculate_metrics(embeddings_could, 
+                                             num_ctx, 
+                                             num_gen_total)
 
 # get conditions
-n_per_context = int(len(cosine_dist_could)/n_contexts)
-def get_contexts(data_dictionary, n_per_context):
-    context_list = [[key for _ in range(n_per_context)] for key in data_dictionary.keys()]
-    context_list = [item for sublist in context_list for item in sublist]
-    return context_list
-
-contexts_could = get_contexts(data_could, n_per_context)
+n_per_context = int(len(cosine_dist)/num_ctx)
+context_list = get_pairwise_contexts(contexts, n_per_context)
 
 # gather dataframes 
 df_could = pd.DataFrame({
-    'context': contexts_could,
-    'cosine_dist': cosine_dist_could,
-    'euclid_dist': euclid_dist_could})
+    'context': context_list,
+    'cosine_dist': cosine_dist,
+    'euclid_dist': euclid_dist})
 
 # plot difference within conditions (cosine + pairwise)
 fig, ax = plt.subplots()
@@ -132,7 +82,8 @@ sns.boxplot(data=df_could,
             x='context',
             y='cosine_dist')
 fig.suptitle('Cosine Distance Within Contexts')
-fig.savefig(f'fig/cosine_within_{model_name}_n{n}_temp{temperature}_{condition}.png')
+plt.ylabel('Cosine Distance')
+fig.savefig(f'fig/cosine_within_temp{temperature}_{condition}.png')
 plt.close()
 
 fig, ax = plt.subplots()
@@ -140,8 +91,12 @@ sns.boxplot(data=df_could,
             x='context',
             y='euclid_dist')
 fig.suptitle('Euclidean Distance Within Conditions')
-fig.savefig(f'fig/euclid_within_{model_name}_n{n}_temp{temperature}_{condition}.png')
+plt.ylabel('Euclidean Distance')
+fig.savefig(f'fig/euclid_within_temp{temperature}_{condition}.png')
 plt.close()
+
+##### that is it then for this one I believe ######
+
 
 # add mean (PWD) for each distance metric 
 '''
