@@ -15,13 +15,16 @@ import glob
 from helper_functions import *
 
 # setup
-condition='should'
 temperature='0.5'
 
 # load files
-path = f'../gpt/data/*temp{temperature}_{condition}*.json'
-list_of_files = glob.glob(path)
-list_of_files = sorted(list_of_files)
+def match_files(path):
+    list_of_files = glob.glob(path)
+    list_of_files = sorted(list_of_files)
+    return list_of_files
+
+files_could = match_files('../gpt/data/*temp0.5_could*.json')
+files_should = match_files('../gpt/data/*temp0.5_should*.json')
 
 # load files
 def load_files(list_of_files, list_of_names): 
@@ -44,56 +47,91 @@ def load_files(list_of_files, list_of_names):
     return completion_superlist
 
 contexts = ['Heinz', 'Josh', 'Brian', 'Liz', 'Mary', 'Brad']
-responses_raw = load_files(list_of_files, contexts)
+responses_could = load_files(files_could, contexts)
+responses_should = load_files(files_should, contexts)
 
 # sort responses to a more useful format 
+# assumes that could and should have the same number of contexts
 num_ctx = len(contexts)
-num_gen_individual=int(len(responses_raw[0])/num_ctx) # number of generations per context
-num_runs=len(responses_raw) # number of times we have run the above
-responses_flattened, _ = sort_responses(responses_raw,
-                                        contexts,
-                                        num_gen_individual)
+num_gen_individual=int(len(responses_could[0])/num_ctx) # number of generations per context
+num_runs=len(responses_should) # number of times we have run the above
+responses_could, _ = sort_responses(responses_could,
+                                    contexts,
+                                    num_gen_individual)
+responses_should, _ = sort_responses(responses_should,
+                                     contexts,
+                                     num_gen_individual)
 
 # encode sentences (see helper_functions.py)
-encodings = encode_responses(responses_flattened)
+encodings_could = encode_responses(responses_could)
+encodings_should = encode_responses(responses_should)
 
 # embed responses (see helper_functions.py)
-embeddings_could = embed_responses(encodings)
+embeddings_could = embed_responses(encodings_could)
+embeddings_should = embed_responses(encodings_should)
 
 # calculate cosine and euclidean distance (see helper_functions.py)
 num_gen_total=num_gen_individual*num_runs
-cosine_dist, euclid_dist = calculate_metrics(embeddings_could, 
-                                             num_ctx, 
-                                             num_gen_total)
+cosine_dist_could, euclid_dist_could = calculate_metrics(embeddings_could, 
+                                                         num_ctx, 
+                                                         num_gen_total)
+cosine_dist_should, euclid_dist_should = calculate_metrics(embeddings_should,
+                                                           num_ctx,
+                                                           num_gen_total)
 
 # get conditions
-n_per_context = int(len(cosine_dist)/num_ctx)
+n_per_context = int(len(cosine_dist_could)/num_ctx)
 context_list = get_pairwise_contexts(contexts, n_per_context)
 
 # gather dataframes 
 df_could = pd.DataFrame({
     'context': context_list,
-    'cosine_dist': cosine_dist,
-    'euclid_dist': euclid_dist})
+    'cosine_dist': cosine_dist_could,
+    'euclid_dist': euclid_dist_could})
+df_should = pd.DataFrame({
+    'context': context_list,
+    'cosine_dist': cosine_dist_should,
+    'euclid_dist': euclid_dist_should})
 
 # plot difference within conditions (cosine + pairwise)
-fig, ax = plt.subplots()
-sns.boxplot(data=df_could,
-            x='context',
-            y='cosine_dist')
-fig.suptitle('Cosine Distance Within Contexts')
-plt.ylabel('Cosine Distance')
-fig.savefig(f'fig/cosine_within_temp{temperature}_{condition}.png')
-plt.close()
+def boxplot_distance_within_conditions(df, distance_metric, distance_label, temperature, condition):
+    fig, ax = plt.subplots()
+    sns.boxplot(data=df,
+                x='context',
+                y=distance_metric)
+    fig.suptitle(f'{distance_label} Within Contexts')
+    plt.xlabel('Context')
+    plt.ylabel(distance_label)
+    fig.savefig(f'fig/{distance_metric}_within_temp{temperature}_{condition}.png')
+    fig.savefig(f'fig/{distance_metric}_within_temp{temperature}_{condition}.pdf')
+    plt.close()
 
-fig, ax = plt.subplots()
-sns.boxplot(data=df_could,
-            x='context',
-            y='euclid_dist')
-fig.suptitle('Euclidean Distance Within Conditions')
-plt.ylabel('Euclidean Distance')
-fig.savefig(f'fig/euclid_within_temp{temperature}_{condition}.png')
-plt.close()
+boxplot_distance_within_conditions(df_could, 'cosine_dist', 'Cosine Distance', temperature, 'could')
+boxplot_distance_within_conditions(df_could, 'euclid_dist', 'Euclidean Distance', temperature, 'could')
+
+# plot difference grouped by condition
+df_could['condition'] = 'could'
+df_should['condition'] = 'should'
+df_combined = pd.concat([df_could, df_should])
+
+def boxplot_distance_across_conditions(df, distance_metric, distance_label, temperature, condition): 
+    fig, ax = plt.subplots()
+    sns.boxplot(data=df, 
+                x='context', 
+                y=distance_metric, 
+                hue='condition')
+
+    # Set plot labels and title
+    plt.xlabel('Context')
+    plt.ylabel(distance_label)
+    plt.title(f'{distance_label} by Context and Condition')
+
+    fig.savefig(f'fig/{distance_metric}_across_temp{temperature}_{condition}.png')
+    fig.savefig(f'fig/{distance_metric}_across_temp{temperature}_{condition}.pdf')
+    plt.close()
+
+boxplot_distance_across_conditions(df_combined, 'cosine_dist', 'Cosine Distance', temperature, 'could')
+boxplot_distance_across_conditions(df_combined, 'euclid_dist', 'Euclidean Distance', temperature, 'could')
 
 ##### that is it then for this one I believe ######
 
