@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import os 
 import glob
 from helper_functions import *
+import ptitprince as pt 
 
 # setup
 temperature='1.0'
@@ -135,19 +136,12 @@ def boxplot_distance_across_conditions(df, distance_metric, distance_label, temp
 boxplot_distance_across_conditions(df_combined, 'cosine_dist', 'Cosine Distance', temperature, 'could')
 boxplot_distance_across_conditions(df_combined, 'euclid_dist', 'Euclidean Distance', temperature, 'could')
 
-# crazy raincloud style 
+# raincloud plots
 import ptitprince as pt 
 
-dx = "context"; dy = "cosine_dist"; ort = "h"; pal = "Set2"; sigma = .2
-f, ax = plt.subplots(figsize=(7, 5))
-
-pt.RainCloud(x = dx, y = dy, data = df_could, 
-             palette = pal, bw = sigma,
-             width_viol = .6, ax = ax, orient = ort)
-
-dhue='condition'
-sigma=0.05
-f, ax = plt.subplots(figsize=(7, 10))
+## across conditions
+dx = "context"; dy = "cosine_dist"; ort = "h"; pal = "Set2"; sigma = .05; dhue='condition'
+f, ax = plt.subplots(figsize=(5, 7))
 ax=pt.RainCloud(x = dx, 
                 y = dy, 
                 hue = dhue, 
@@ -159,25 +153,42 @@ ax=pt.RainCloud(x = dx,
                 orient = ort, 
                 alpha = .7, # alpha of distributions (maybe plots)
                 dodge = True,
-                point_size=0.1)
-                #box_linewidth=0) #??
-plt.show()
+                point_size=0.1,
+                box_showfliers=False,
+                box_showmeans=True)
+plt.xlabel('Cosine Distance')
+plt.savefig(f'fig_png/raincloud_cosine_temp{temperature}_fix.png', bbox_inches='tight')
+plt.savefig(f'fig_pdf/raincloud_cosine_temp{temperature}_fix.pdf', bbox_inches='tight')
 
+## within condition
+
+
+'''
 
 # do it manually: 
 width_box=0.15
 f, ax = plt.subplots(figsize=(7, 10))
 
-ax=pt.half_violinplot(x = dy, y = dx, hue = dhue, data = df_combined,
-                    order = None, hue_order = None,
-                    orient = ort, width = 0.7,
-                    inner = None, palette = pal, bw = sigma,  linewidth = 1,
-                    cut = 0., scale = "area", split = False, 
-                    offset = max(width_box/1.8, .15) + .05)
+ax=pt.half_violinplot(x = dy, 
+                      y = dx, 
+                      hue = dhue, 
+                      data = df_combined,
+                      hue_order = None,
+                      orient = ort, 
+                      width = 0.7,
+                      inner = None, 
+                      palette = pal, 
+                      bw = sigma, 
+                      linewidth = 1,
+                      cut = 0., 
+                      scale = "area", 
+                      split = False) #, 
+                      #offset = max(width_box/1.8, .15) + .05)
 
 # Draw umberella/boxplot
 ax=sns.boxplot(x = dy, y = dx, hue = dhue, data = df_combined, 
             orient = ort, width = width_box,
+            zorder=10,
             order = None, hue_order = None,
             showfliers=False,
             color = "black", showcaps = True, # boxprops = boxprops,
@@ -189,3 +200,4 @@ ax = sns.stripplot(x = dy, y = dx, hue = dhue,
                    palette = palette, move = move, 
                    size = point_size, jitter = jitter, dodge = dodge,
                    width = width_box)
+'''
