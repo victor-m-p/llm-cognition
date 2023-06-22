@@ -17,9 +17,9 @@ from tenacity import (
     wait_random_exponential,
 )
 
-condition='could' # could
-num_generations=1000
-num_times=1
+condition='should' # could
+num_generations=100
+num_times=10
 
 load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -60,37 +60,29 @@ def generate_completions_batched(vignettes, prompts, num_generations, temperatur
     generation_dict = {}
     for num, context in tqdm(enumerate(contexts)): 
         completion = create_completion(context, temperature, num_generations)
+        
         generation_list = [completion['choices'][num]['text'] for num in range(num_generations)]
+        
+        for i, ele in enumerate(generation_list): 
+            if len(ele.split()) < 2: 
+                print('less than 2 words')
+                length=1
+                while length < 2:
+                    print('enter while') 
+                    completion_fix = create_completion(context, temperature, 1)
+                    text = completion_fix['choices'][0]['text']
+                    generation_list[i]=text
+                    length = len(text.split())
+                
         generation_dict['context_' + str(num)] = {}
         generation_dict['context_' + str(num)]['vignette'] = vignettes[num]
         generation_dict['context_' + str(num)]['prompt'] = prompts[num]
         generation_dict['context_' + str(num)]['generation'] = generation_list
     return generation_dict
 
-def generate_completions_sequential(vignettes, prompts, num_generations, temperature):
-    contexts = [background + prompt for background, prompt in zip(vignettes, prompts)]
-    generation_dict = {}
-    for num, context in tqdm(enumerate(contexts)): 
-        generation_list = []
-        for _ in range(num_generations):
-            completion = openai.Completion.create(
-              model="text-davinci-003",
-              prompt=context,
-              stop=['.', '?', '!', '\n\n'],
-              temperature=temperature,
-              n=1
-              )
-            text = completion['choices'][0]['text']
-            generation_list.append(text)
-        generation_dict['context_' + str(num)] = {}
-        generation_dict['context_' + str(num)]['vignette'] = vignettes[num]
-        generation_dict['context_' + str(num)]['prompt'] = prompts[num]
-        generation_dict['context_' + str(num)]['generation'] = generation_list
-    return generation_dict
-
-temperature_grid = [0.5, 1.0]
+temperature = 1.0 # [0.5, 1.0]
 for i in range(num_times):
-    for temperature in temperature_grid: 
-        generation_dict = generate_completions_batched(vignettes, prompts, num_generations, temperature)
-        with open(f'data/phillips2017_text-davinci-003_n{num_generations}_m{i}_temp{temperature}_{condition}.json', 'w') as fp:
-            json.dump(generation_dict, fp)
+    #for temperature in temperature_grid: 
+    generation_dict = generate_completions_batched(vignettes, prompts, num_generations, temperature)
+    with open(f'data/phillips2017_text-davinci-003_n{num_generations}_m{i}_temp{temperature}_{condition}_fix.json', 'w') as fp:
+        json.dump(generation_dict, fp)

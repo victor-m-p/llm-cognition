@@ -13,7 +13,7 @@ import glob
 from helper_functions import *
 
 # setup
-temperature='0.5'
+temperature='1.0'
 
 # load files
 def match_files(path):
@@ -21,8 +21,8 @@ def match_files(path):
     list_of_files = sorted(list_of_files)
     return list_of_files
 
-files_could = match_files(f'../gpt/data/*temp{temperature}_could*.json')
-files_should = match_files(f'../gpt/data/*temp{temperature}_should*.json')
+files_could = match_files(f'../gpt/data/*temp{temperature}_could_fix.json')
+files_should = match_files(f'../gpt/data/*temp{temperature}_should_fix.json')
 
 # load files
 def load_files(list_of_files, list_of_names): 
@@ -101,11 +101,11 @@ def boxplot_distance_within_conditions(df, distance_metric, distance_label, temp
     sns.boxplot(data=df,
                 x='context',
                 y=distance_metric)
-    fig.suptitle(f'{distance_label} Within Contexts')
+    #fig.suptitle(f'{distance_label} Within Contexts')
     plt.xlabel('Context')
     plt.ylabel(distance_label)
-    fig.savefig(f'fig_png/boxplot_{distance_metric}_within_temp{temperature}_{condition}.png')
-    fig.savefig(f'fig_pdf/boxplot_{distance_metric}_within_temp{temperature}_{condition}.pdf')
+    fig.savefig(f'fig_png/boxplot_{distance_metric}_within_temp{temperature}_{condition}_fix.png')
+    fig.savefig(f'fig_pdf/boxplot_{distance_metric}_within_temp{temperature}_{condition}_fix.pdf')
     plt.close()
 
 boxplot_distance_within_conditions(df_could, 'cosine_dist', 'Cosine Distance', temperature, 'could')
@@ -126,11 +126,66 @@ def boxplot_distance_across_conditions(df, distance_metric, distance_label, temp
     # Set plot labels and title
     plt.xlabel('Context')
     plt.ylabel(distance_label)
-    plt.title(f'{distance_label} by Context and Condition')
+    #plt.title(f'{distance_label} by Context and Condition')
     plt.legend(loc='upper right')
-    fig.savefig(f'fig_png/boxplot_{distance_metric}_across_temp{temperature}_{condition}.png')
-    fig.savefig(f'fig_pdf/boxplot_{distance_metric}_across_temp{temperature}_{condition}.pdf')
+    fig.savefig(f'fig_png/boxplot_{distance_metric}_across_temp{temperature}_{condition}_fix.png')
+    fig.savefig(f'fig_pdf/boxplot_{distance_metric}_across_temp{temperature}_{condition}_fix.pdf')
     plt.close()
 
 boxplot_distance_across_conditions(df_combined, 'cosine_dist', 'Cosine Distance', temperature, 'could')
 boxplot_distance_across_conditions(df_combined, 'euclid_dist', 'Euclidean Distance', temperature, 'could')
+
+# crazy raincloud style 
+import ptitprince as pt 
+
+dx = "context"; dy = "cosine_dist"; ort = "h"; pal = "Set2"; sigma = .2
+f, ax = plt.subplots(figsize=(7, 5))
+
+pt.RainCloud(x = dx, y = dy, data = df_could, 
+             palette = pal, bw = sigma,
+             width_viol = .6, ax = ax, orient = ort)
+
+dhue='condition'
+sigma=0.05
+f, ax = plt.subplots(figsize=(7, 10))
+ax=pt.RainCloud(x = dx, 
+                y = dy, 
+                hue = dhue, 
+                data = df_combined, 
+                palette = pal, 
+                bw = sigma,
+                width_viol = .7, 
+                ax = ax, 
+                orient = ort, 
+                alpha = .7, # alpha of distributions (maybe plots)
+                dodge = True,
+                point_size=0.1)
+                #box_linewidth=0) #??
+plt.show()
+
+
+# do it manually: 
+width_box=0.15
+f, ax = plt.subplots(figsize=(7, 10))
+
+ax=pt.half_violinplot(x = dy, y = dx, hue = dhue, data = df_combined,
+                    order = None, hue_order = None,
+                    orient = ort, width = 0.7,
+                    inner = None, palette = pal, bw = sigma,  linewidth = 1,
+                    cut = 0., scale = "area", split = False, 
+                    offset = max(width_box/1.8, .15) + .05)
+
+# Draw umberella/boxplot
+ax=sns.boxplot(x = dy, y = dx, hue = dhue, data = df_combined, 
+            orient = ort, width = width_box,
+            order = None, hue_order = None,
+            showfliers=False,
+            color = "black", showcaps = True, # boxprops = boxprops,
+            palette = pal, dodge = False)
+
+ax = sns.stripplot(x = dy, y = dx, hue = dhue, 
+                   data = df_combined, orient = ort,
+                   order = order, hue_order = hue_order, 
+                   palette = palette, move = move, 
+                   size = point_size, jitter = jitter, dodge = dodge,
+                   width = width_box)

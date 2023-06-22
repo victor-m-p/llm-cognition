@@ -10,6 +10,14 @@ import json
 from tqdm import tqdm 
 import re 
 
+lst=['One thing I like', '1']
+lst[1] = 'hello'
+lst
+for i in lst: 
+    if len(i.split()) > 1: 
+        
+responses_could = [s for s in responses_could if len(s.split()) > 1]
+
 load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
@@ -42,7 +50,20 @@ def generate_completions_batched(vignettes, prompts, num_generations, temperatur
           temperature=temperature,
           n=num_generations
           )
+        # add to generation list
         generation_list = [completion['choices'][num]['message']['content'] for num in range(num_generations)]
+        # when answer length = 1 it is typically a mistake;
+        # i.e., "1" (where the model wants 1. ....). 
+        for i in generation_list: 
+            if len(i.split()) > 1: 
+                completion = openai.ChatCompletion.create(
+                    model="gpt-3.5-turbo",
+                    messages=[{"role": "user", "content": context}],
+                    stop=['.', '?', '!', '\n\n'],
+                    temperature=temperature,
+                    n=1)
+                generation_list[i]=completion['choices'][0]['message']['content']
+                
         generation_dict['context_' + str(num)] = {}
         generation_dict['context_' + str(num)]['vignette'] = vignettes[num]
         generation_dict['context_' + str(num)]['prompt'] = prompts[num]

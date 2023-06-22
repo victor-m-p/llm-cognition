@@ -23,8 +23,8 @@ def match_files(path):
     list_of_files = sorted(list_of_files)
     return list_of_files
 
-files_could = match_files(f'../gpt/data/*temp{temperature}_could*.json')
-files_should = match_files(f'../gpt/data/*temp{temperature}_should*.json')
+files_could = match_files(f'../gpt/data/*temp{temperature}_could_fix.json')
+files_should = match_files(f'../gpt/data/*temp{temperature}_should_fix.json')
 
 # load files
 def load_files(list_of_files, list_of_names): 
@@ -99,8 +99,8 @@ df_pca_should = pd.DataFrame({
     'context': contexts_should,
     'responses': responses_should})
 
-# plot PCA within condition: 
-def plot_PCA_ctx_hull(df, title, outname):
+# plot PCA across conditions condition: 
+def plot_PCA_ctx_hull(df, outname):
 
     fig, _ = plt.subplots()
     sns.scatterplot(data=df, 
@@ -127,18 +127,16 @@ def plot_PCA_ctx_hull(df, title, outname):
 
     plt.xlabel('PC1')
     plt.ylabel('PC2')
-    fig.suptitle(title)
+    #fig.suptitle(title)
     plt.tight_layout()
     fig.savefig(f'fig_png/{outname}.png')
     fig.savefig(f'fig_pdf/{outname}.pdf')
     plt.close()
 
 plot_PCA_ctx_hull(df_pca_could, 
-                  'PCA projection of "could" condition',
-                  f'PCA_hull_temp{temperature}_could')
+                  f'PCA_hull_temp{temperature}_could_fix')
 plot_PCA_ctx_hull(df_pca_should,
-                  'PCA projection of "should" condition',
-                  f'PCA_hull_temp{temperature}_should')
+                  f'PCA_hull_temp{temperature}_should_fix')
 
 # run PCA on only a single could context
 ## NB: question is whether it makes more sense to just embed
@@ -146,12 +144,6 @@ plot_PCA_ctx_hull(df_pca_should,
 ## embedding but will be more slick perhaps?
 ## I think I will do this for now ...
 ## we might actually want e.g. Heinz to be consistent color
-context_mapping={0: 'Heinz',
-                 1: 'Josh',
-                 2: 'Brian',
-                 3: 'Liz',
-                 4: 'Mary',
-                 5: 'Brad'}
 
 # function to select dissimilar points 
 def select_dissimilar_points(df, n_points=5):
@@ -177,6 +169,7 @@ def select_dissimilar_points(df, n_points=5):
     
     return selected_indices
 
+# for running PCA on single context
 def run_PCA_single_context(df, context, context_num, condition, labels='false'):
     
     df_context = df[df['context']==context]
@@ -223,22 +216,129 @@ def run_PCA_single_context(df, context, context_num, condition, labels='false'):
         
     plt.xlabel('PC1')
     plt.ylabel('PC2')
-    fig.suptitle(f'PCA projection of "{context}" context for "{condition}" condition')
+    #fig.suptitle(f'PCA projection of "{context}" context for "{condition}" condition')
     # Adjust layout to account for response labels
     
     plt.tight_layout()
-    fig.savefig(f'fig_png/PCA_hull_temp{temperature}_{condition}_{context}_labels_{labels}.png', bbox_inches='tight')
-    fig.savefig(f'fig_pdf/PCA_hull_temp{temperature}_{condition}_{context}_labels_{labels}.pdf') 
+    fig.savefig(f'fig_png/PCA_hull_temp{temperature}_{condition}_{context}_labels_{labels}_fix.png', bbox_inches='tight')
+    fig.savefig(f'fig_pdf/PCA_hull_temp{temperature}_{condition}_{context}_labels_{labels}_fix.pdf') 
     plt.close()
 
 # There is one problematic generation (at least) for Brad (temp=0.5)
 # Brian is the most interesting for temp=0.5 I think. 
+
+#run_pca 
+context_mapping={0: 'Heinz',
+                 1: 'Josh',
+                 2: 'Brian',
+                 3: 'Liz',
+                 4: 'Mary',
+                 5: 'Brad'}
 for context_num, context in context_mapping.items():
+
     run_PCA_single_context(df_pca_could, 
                            context, 
                            context_num,
                            'could',
                            'true')
+
+# the new concept
+def run_PCA_across_condition(df, temperature, context_num, context, labels='true', use_hull='true'):
+    
+    # Map each unique context to a unique integer
+    fig, ax = plt.subplots(figsize=(8, 6))
+    sns.scatterplot(data=df,
+                    x=df['x'],
+                    y=df['y'],
+                    #color=sns.color_palette()[context_num],
+                    hue='condition',
+                    alpha=0.5)
+    
+    # Get the color and style based on the group
+    color = sns.color_palette()[context_num]
+
+    if use_hull == 'true': 
+        unique_contexts = df['condition'].unique()
+        context_to_int = dict(zip(unique_contexts, range(len(unique_contexts))))
+        # Generate ConvexHull for each group
+        hull = ConvexHull(df[['x', 'y']])
+        for (cond, ), group in df.groupby(['condition']):
+            # Generate ConvexHull for each group
+            hull = ConvexHull(group[['x', 'y']])
+            
+            # Get the color and style based on the group
+            color = sns.color_palette()[context_to_int[cond]]
+            #style = '-' if cond == 'could' else '--'  # adjust according to your conditions
+            
+            # Draw the lines and fill the areas
+            for simplex in hull.simplices:
+                plt.plot(group['x'].iloc[simplex], group['y'].iloc[simplex], color=color) #style, color=color)
+            plt.fill(group['x'].iloc[hull.vertices], group['y'].iloc[hull.vertices], alpha=0.5, color=color)
+
+    # Label 5 random points
+    if labels=='true': 
+        #selected_indices = random.sample(range(len(df_context)), 5)
+        selected_indices = select_dissimilar_points(df, 6)
+        responses = []
+        total_lines = 0
+        for i, index in enumerate(selected_indices, 1):
+            x = df['x'].loc[index]
+            y = df['y'].loc[index]
+            response = df['responses'].loc[index]
+            # Insert line breaks for long responses
+            max_line_length = 75
+            response_lines = textwrap.wrap(response, width=max_line_length)
+            #response_lines = [response[j:j+max_line_length] for j in range(0, len(response), max_line_length)]
+            responses.append(f"{i}: " + "\n".join(response_lines))
+            ax.text(x, y, str(i), fontsize=12, ha='right')
+
+            # Dynamically calculate vertical position
+            for line in response_lines:
+                plt.figtext(0.1, -0.05 - 0.05 * total_lines, line if line != response_lines[0] else f"{i}: {line}", 
+                            fontsize=12, ha="left")
+                total_lines += 1
+        
+    plt.xlabel('PC1')
+    plt.ylabel('PC2')
+    #fig.suptitle(f'PCA projection of "{context}" context for "{condition}" condition')
+    # Adjust layout to account for response labels
+    
+    plt.tight_layout()
+    fig.savefig(f'fig_png/PCA_hull_{use_hull}_temp{temperature}_{context}_labels_{labels}_fix.png', bbox_inches='tight')
+    fig.savefig(f'fig_pdf/PCA_hull_{use_hull}_temp{temperature}_{context}_labels_{labels}_fix.pdf') 
+    plt.close()
+
+for num, i in enumerate(range(0, num_ctx*num_gen_individual*num_runs, num_gen_individual*num_runs)):
+    # embeddings for could and should
+    embeddings_could_temp = embeddings_could[i:i+num_gen_individual*num_runs]
+    embeddings_should_temp = embeddings_should[i:i+num_gen_individual*num_runs]
+    # stack and run pca 
+    embeddings_temp = torch.cat((embeddings_could_temp, embeddings_should_temp), 0)
+    x_temp, y_temp = run_PCA(embeddings_temp)
+    # contexts for could and should
+    contexts_could_temp = contexts_could[i:i+num_gen_individual*num_runs]
+    contexts_should_temp = contexts_should[i:i+num_gen_individual*num_runs]
+    # responses for could and should
+    responses_could_temp = responses_could[i:i+num_gen_individual*num_runs]
+    responses_should_temp = responses_should[i:i+num_gen_individual*num_runs]
+    
+    df_pca_temp = pd.DataFrame({
+        'x': x_temp,
+        'y': y_temp,
+        'context': contexts_could_temp + contexts_should_temp,
+        'condition': ['could']*num_gen_individual*num_runs + ['should']*num_gen_individual*num_runs,
+        'responses': responses_could_temp + responses_should_temp})
+
+    context_temp = context_mapping.get(num)
+
+    run_PCA_across_condition(df_pca_temp,
+                             temperature,
+                             num,
+                             context_temp,
+                             'true',
+                             'false')
+
+
 
 # run PCA across conditions
 # merge the embeddings
