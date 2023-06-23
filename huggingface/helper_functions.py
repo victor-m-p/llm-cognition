@@ -41,6 +41,8 @@ def calculate_metrics(sentence_embeddings, num_ctx, num_gen_total):
     cosine_list = []
     pair_list = []
     for i in range(0, num_ctx*num_gen_total, num_gen_total):
+        print(i)
+        print(i+num_gen_total)
         # cosine distances
         cos_dist = cosine_distances(sentence_embeddings[i:i+num_gen_total])
         # pairwise distances

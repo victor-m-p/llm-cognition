@@ -73,6 +73,26 @@ encodings_should = encode_responses(responses_should)
 embeddings_could = embed_responses(encodings_could)
 embeddings_should = embed_responses(encodings_should)
 
+#### crazy interlude here; clean up after submission ####
+# test for the first case
+
+vector1 = embeddings_could[0:1000]
+vector2 = embeddings_should[2000:3000]
+vector1_reshaped = vector1.unsqueeze(0)
+vector2_reshaped = vector2.unsqueeze(0)
+distances = torch.cdist(vector1_reshaped, vector2_reshaped)
+distances = distances.squeeze(0)
+distances_flat = distances.reshape(1000000)
+np.median(distances_flat) 
+# Heinz: 0.93 (0.94, 0.91)
+# Josh: 0.992 (0.97, 0.94)
+# Brian: 1.024 (1.04, 1.0)
+# Liz: 0.748 (0.77, 0.72)
+# Mary: 0.744 (0.77, 0.68)
+# Brad: 1.161 (1.11, 1.15)
+
+#### resume the previous code ####
+
 # calculate cosine and euclidean distance (see helper_functions.py)
 num_gen_total=num_gen_individual*num_runs
 cosine_dist_could, euclid_dist_could = calculate_metrics(embeddings_could, 
@@ -95,6 +115,9 @@ df_should = pd.DataFrame({
     'context': context_list,
     'cosine_dist': cosine_dist_should,
     'euclid_dist': euclid_dist_should})
+
+df_could.groupby('context').describe()
+df_should.groupby('context').describe()
 
 # plot difference within conditions (cosine + pairwise)
 def boxplot_distance_within_conditions(df, distance_metric, distance_label, temperature, condition):
@@ -141,7 +164,7 @@ import ptitprince as pt
 
 ## across conditions
 dx = "context"; dy = "cosine_dist"; ort = "h"; pal = "Set2"; sigma = .05; dhue='condition'
-f, ax = plt.subplots(figsize=(5, 7))
+f, ax = plt.subplots(figsize=(5, 7), dpi=100)
 ax=pt.RainCloud(x = dx, 
                 y = dy, 
                 hue = dhue, 
@@ -158,9 +181,24 @@ ax=pt.RainCloud(x = dx,
                 box_showmeans=True)
 plt.xlabel('Cosine Distance')
 plt.savefig(f'fig_png/raincloud_cosine_temp{temperature}_fix.png', bbox_inches='tight')
-plt.savefig(f'fig_pdf/raincloud_cosine_temp{temperature}_fix.pdf', bbox_inches='tight')
 
-## within condition
+f, ax = plt.subplots(figsize=(5, 7), dpi=100)
+ax=pt.RainCloud(x = dx, 
+                y = dy, 
+                hue = dhue, 
+                data = df_combined, 
+                palette = pal, 
+                bw = sigma,
+                width_viol = .7, 
+                ax = ax, 
+                orient = ort, 
+                alpha = .7, # alpha of distributions (maybe plots)
+                dodge = True,
+                point_size=0.1,
+                box_showfliers=False,
+                box_showmeans=True)
+plt.xlabel('Euclidean Distance')
+plt.savefig(f'fig_png/raincloud_euclid_temp{temperature}_fix.png', bbox_inches='tight')
 
 
 '''
