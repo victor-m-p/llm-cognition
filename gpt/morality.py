@@ -1,3 +1,9 @@
+'''
+This is not currently used. 
+Intended to test whether we can shift the distance between could and should--
+by modulating the valence (importance) of the action. 
+'''
+
 import openai 
 import os 
 import matplotlib.pyplot as plt 

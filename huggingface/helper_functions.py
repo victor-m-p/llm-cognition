@@ -3,6 +3,8 @@ from sklearn.metrics.pairwise import cosine_distances
 import numpy as np 
 from transformers import AutoTokenizer, AutoModel
 import torch
+import json
+import glob 
 from torch.nn import functional as F
 checkpoint = 'sentence-transformers/all-MiniLM-L12-v2' 
 model = AutoModel.from_pretrained(checkpoint) 
@@ -41,8 +43,6 @@ def calculate_metrics(sentence_embeddings, num_ctx, num_gen_total):
     cosine_list = []
     pair_list = []
     for i in range(0, num_ctx*num_gen_total, num_gen_total):
-        print(i)
-        print(i+num_gen_total)
         # cosine distances
         cos_dist = cosine_distances(sentence_embeddings[i:i+num_gen_total])
         # pairwise distances
@@ -72,3 +72,33 @@ def get_pairwise_contexts(contexts, n_per_context):
     context_list = [[key for _ in range(n_per_context)] for key in contexts]
     context_list = [item for sublist in context_list for item in sublist]
     return context_list
+
+def load_files(list_of_files, list_of_names): 
+    completion_superlist = []
+    # loop over all files in condition
+    for file in list_of_files: 
+        # load file
+        with open(file) as f: 
+            data_dictionary = json.load(f)
+        # extract the completions
+        completion_list = [[completion for completion in data_dictionary[key]['generation']] for key in data_dictionary.keys()]
+        completion_list = [item for sublist in completion_list for item in sublist]
+        completion_list = [s.strip() for s in completion_list]
+        # if names are mentioned remove them
+        for name in list_of_names: 
+            completion_list = [s.replace(name, 'X') for s in completion_list]
+        # append to generation list 
+        completion_superlist.append(completion_list)
+    return completion_superlist
+
+def match_files(path):
+    list_of_files = glob.glob(path)
+    list_of_files = sorted(list_of_files)
+    return list_of_files
+
+def run_PCA(embeddings, n_components=2):
+    pca = PCA(n_components=n_components)
+    transformed = pca.fit_transform(embeddings)
+    x = transformed[:, 0]
+    y = transformed[:, 1]
+    return x, y

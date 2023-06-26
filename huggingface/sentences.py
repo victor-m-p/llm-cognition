@@ -1,3 +1,0 @@
-'''
-used in the paper
-'''

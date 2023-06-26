@@ -1,3 +1,7 @@
+'''
+not currently used. 
+'''
+
 from sklearn.decomposition import PCA
 import json 
 from sklearn.metrics.pairwise import cosine_distances

@@ -1,6 +1,7 @@
 '''
 python gpt2.py -i data_input/ -o data_output/
 getting logprobs and entropy of sequence. 
+not currently used. 
 '''
 
 import re 

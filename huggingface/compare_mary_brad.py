@@ -1,5 +1,5 @@
 '''
-used in the paper 
+not used in current manuscript
 '''
 
 import json 
@@ -168,5 +168,3 @@ np.median(upper_triangle_values)
 df_mary_brad.groupby('context').median()
 # 0.844 (vector 1)
 # 1.15 (vector 2)
-
-### am I going crazy? ###
