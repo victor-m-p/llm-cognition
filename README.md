@@ -5,7 +5,7 @@ Tested on POP!\_OS 22.04 LTS with NVIDIA GA107M (GeForce RTX 3050 Ti Mobile) gra
 Parts of the code will require modification to run on other OS and graphics. 
 
 # Overview
-Data generated in ```gpt/genereate_branch_completion.py```
+Data generated in ```gpt/generate_branch_completion.py```
 Plots generated in ```huggingface/plot_raincloud.py```, ```huggingface/plot_PCA_within_context.py```
 
 # Set up environments
