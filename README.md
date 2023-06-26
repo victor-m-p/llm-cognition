@@ -5,19 +5,19 @@ Tested on POP!\_OS 22.04 LTS with NVIDIA GA107M (GeForce RTX 3050 Ti Mobile) gra
 Parts of the code will require modification to run on other OS and graphics. 
 
 # Overview
-Data generated in ```gpt/genereate\_branch\_completion.py```
-Plots generated in ```huggingface/plot\_raincloud.py```, ```huggingface/plot\_PCA\_within\_context.py.```
+Data generated in ```gpt/genereate_branch_completion.py```
+Plots generated in ```huggingface/plot_raincloud.py```, ```huggingface/plot_PCA_within_context.py```
 
 # Set up environments
 
-## OpenAI env (creating data, requires API key)
+## /gpt env (creating data, requires API key)
 ```bash
 cd gpt
 bash create_venv.sh
 source gptenv/bin/activate
 ```
 
-## HuggingFace env (creating plots)
+## /huggingface env (creating plots)
 ```bash
 cd huggingface
 bash create_venv.sh
