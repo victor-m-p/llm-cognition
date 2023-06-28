@@ -20,7 +20,7 @@ files_should = match_files(os.path.join(inpath, f'*temp{temperature}_should.json
 
 # load files (see helper_functions.py)
 contexts=['Linda', 'Robert', 'James', 'Mary', 'Simon', 'Jack',
-          'Maryam', 'Mary', 'Justin', 'Sam', 'Jackson' 'Abraham',
+          'Maryam', 'Mary', 'Justin', 'Sam', 'Jackson', 'Abraham',
           'Alexandria', 'Emily']
 responses_could = load_files(files_could, contexts)
 responses_should = load_files(files_should, contexts)

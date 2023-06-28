@@ -8,13 +8,10 @@ in particular in learning the number of clusters.
 
 # first the usual preprocessing 
 
-import json 
+
 import pandas as pd 
-import seaborn as sns 
-import matplotlib.pyplot as plt
 import os 
 from helper_functions import *
-import textwrap 
 from transformers import AutoTokenizer, AutoModel
 import numpy as np
 from sklearn.mixture import GaussianMixture
@@ -26,15 +23,19 @@ tokenizer = AutoTokenizer.from_pretrained(checkpoint)
 
 # setup
 temperature='1.0'
-inpath='../data/data_output/phillips_gpt3'
+inpath='../data/data_output/vignettes_gpt3' #'../data/data_output/phillips_gpt3'
 outpath='../fig/GMM_experiments'
 
 # match files (see helper_functions.py)
-files_could = match_files(os.path.join(inpath, f'*temp{temperature}_could_fix.json'))
-files_should = match_files(os.path.join(inpath, f'*temp{temperature}_should_fix.json'))
+files_could = match_files(os.path.join(inpath, f'*temp{temperature}_could.json'))
+files_should = match_files(os.path.join(inpath, f'*temp{temperature}_should.json'))
 
 # load files (see helper_functions.py)
-contexts = ['Heinz', 'Josh', 'Brian', 'Liz', 'Mary', 'Brad']
+# contexts = ['Heinz', 'Josh', 'Brian', 'Liz', 'Mary', 'Brad']
+contexts=['Linda', 'Robert', 'James', 'Mary', 'Simon', 'Jack',
+          'Maryam', 'Mary', 'Justin', 'Sam', 'Jackson', 'Abraham',
+          'Alexandria', 'Emily']
+
 responses_could = load_files(files_could, contexts)
 responses_should = load_files(files_should, contexts)
 
@@ -92,8 +93,8 @@ def run_BIC_grid(embeddings, max_components):
     return bic_dict
 
 X = embeddings_could #np.array(embeddings_could)
-bic_dict=run_BIC_grid(X, 10) # wants n=3 components
-
+bic_dict=run_BIC_grid(X, 10) #wow, just n=1 (because of n?)
+bic_dict
 ### check the n=3 component model
 gm_n2 = GaussianMixture(n_components=2, random_state=0).fit(X)
 gm_n4 = GaussianMixture(n_components=4, random_state=0).fit(X)
@@ -116,16 +117,17 @@ df.groupby('p2').context.value_counts()
 df.groupby('p4').context.value_counts()
 df.groupby('p6').context.value_counts()
 
-## within context
-### case-study=Heinz
+## within context (all best for n=1)
 n_tot_per_context=num_gen_individual*num_runs
 context_index=0
 embedding_subset=embeddings_could[context_index*n_tot_per_context:(context_index+1)*n_tot_per_context]
 bic_dict=run_BIC_grid(embedding_subset, 10)
 bic_dict # n=1 still best. 
 
-
-
-## across could and should (i.e. some clusters distinctive?)
-
-## across vignettes (i.e. some clusters distinctive?)
+## across could-should (all best for n=1)
+context_index=5
+embeddings_sub_could=embeddings_could[context_index*n_tot_per_context:(context_index+1)*n_tot_per_context]
+embeddings_sub_should=embeddings_should[context_index*n_tot_per_context:(context_index+1)*n_tot_per_context]
+embeddings_sub=np.concatenate((embeddings_sub_could, embeddings_sub_should), axis=0)
+bic_dict=run_BIC_grid(embeddings_sub, 10)
+bic_dict

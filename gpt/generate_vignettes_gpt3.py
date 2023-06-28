@@ -16,7 +16,7 @@ from tenacity import (
 
 inpath='../data/data_input/vignettes.json'
 outpath='../data/data_output/vignettes_gpt3/'
-condition='should' # could
+condition='could' # could
 num_generations=100
 num_times=1
 
@@ -32,12 +32,12 @@ with open(inpath) as user_file:
   vignettes_raw = json.load(user_file)
   
 vignettes = [vignettes_raw[key] for key in vignettes_raw.keys()]
-vignettes
 
 vignettes = [ensure_punctuation_and_space(s) for s in vignettes]
 names=['Linda', 'Robert', 'James', 'Mary', 'Simon', 'Jack',
-       'Maryam', 'Mary', 'Justin', 'Sam', 'Jackson' 'Abraham',
+       'Maryam', 'Mary', 'Justin', 'Sam', 'Jackson', 'Abraham',
        'Alexandria', 'Emily']
+
 prompts=[f'One thing that {x} {condition} do is to' for x in names]
 
 @retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(6))
