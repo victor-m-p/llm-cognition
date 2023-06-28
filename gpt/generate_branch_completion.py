@@ -3,11 +3,6 @@ Generates the completions used in the submission.
 '''
 import openai 
 import os 
-import matplotlib.pyplot as plt 
-import seaborn as sns 
-import pandas as pd 
-import numpy as np 
-import requests 
 from dotenv import load_dotenv
 import json 
 from tqdm import tqdm 

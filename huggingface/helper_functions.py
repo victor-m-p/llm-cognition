@@ -1,14 +1,10 @@
 from sklearn.decomposition import PCA
 from sklearn.metrics.pairwise import cosine_distances
 import numpy as np 
-from transformers import AutoTokenizer, AutoModel
 import torch
 import json
 import glob 
 from torch.nn import functional as F
-checkpoint = 'sentence-transformers/all-MiniLM-L12-v2' 
-model = AutoModel.from_pretrained(checkpoint) 
-tokenizer = AutoTokenizer.from_pretrained(checkpoint)
 
 def mean_pooling(model_output, attention_mask):
     token_embeddings = model_output[0] #First element of model_output contains all token embeddings
@@ -16,14 +12,14 @@ def mean_pooling(model_output, attention_mask):
     return torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
 
 # encode responses
-def encode_responses(sentences):
+def encode_responses(tokenizer, sentences):
     encoded_input = tokenizer(sentences, 
                               padding=True, 
                               truncation=True, 
                               return_tensors='pt')
     return encoded_input
 
-def embed_responses(encoded_input):
+def embed_responses(model, encoded_input):
     with torch.no_grad():
         model_output = model(**encoded_input)
     sentence_embeddings = mean_pooling(model_output, encoded_input['attention_mask'])

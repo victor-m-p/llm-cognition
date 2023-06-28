@@ -1,7 +1,3 @@
-'''
-Generates raincloud plot used in paper.
-'''
-
 import pandas as pd 
 import matplotlib.pyplot as plt
 import os 
@@ -15,15 +11,17 @@ tokenizer = AutoTokenizer.from_pretrained(checkpoint)
 
 # setup
 temperature='1.0'
-inpath='../data/data_output/phillips_gpt3' 
-outpath='../fig/phillips_gpt3'
+inpath='../data/data_output/vignettes_gpt3'  #'../data/data_output/phillips_gpt3' 
+outpath='../fig/vignettes_gpt3'  #'../fig/phillips_gpt3'
 
 # match files (see helper_functions.py)
-files_could = match_files(os.path.join(inpath, f'*temp{temperature}_could_fix.json'))
-files_should = match_files(os.path.join(inpath, f'*temp{temperature}_should_fix.json'))
+files_could = match_files(os.path.join(inpath, f'*temp{temperature}_could.json'))
+files_should = match_files(os.path.join(inpath, f'*temp{temperature}_should.json'))
 
 # load files (see helper_functions.py)
-contexts = ['Heinz', 'Josh', 'Brian', 'Liz', 'Mary', 'Brad']
+contexts=['Linda', 'Robert', 'James', 'Mary', 'Simon', 'Jack',
+          'Maryam', 'Mary', 'Justin', 'Sam', 'Jackson' 'Abraham',
+          'Alexandria', 'Emily']
 responses_could = load_files(files_could, contexts)
 responses_should = load_files(files_should, contexts)
 
@@ -38,10 +36,6 @@ responses_could, _ = sort_responses(responses_could,
 responses_should, _ = sort_responses(responses_should,
                                      contexts,
                                      num_gen_individual)
-
-# remove one-word responses because these are typically garbage (i.e. "1", where it is because it starts listing and hits full stop)
-responses_could = [s for s in responses_could if len(s.split()) > 1]
-responses_should = [s for s in responses_should if len(s.split()) > 1]
 
 # encode sentences (see helper_functions.py)
 encodings_could = encode_responses(tokenizer, responses_could)

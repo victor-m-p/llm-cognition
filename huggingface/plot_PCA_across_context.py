@@ -10,6 +10,11 @@ import os
 from helper_functions import *
 from scipy.spatial import ConvexHull
 import textwrap 
+from transformers import AutoTokenizer, AutoModel
+
+checkpoint = 'sentence-transformers/all-MiniLM-L12-v2' 
+model = AutoModel.from_pretrained(checkpoint) 
+tokenizer = AutoTokenizer.from_pretrained(checkpoint)
 
 # setup
 temperature='1.0'
@@ -38,12 +43,12 @@ responses_should, contexts_should = sort_responses(responses_should,
                                                    num_gen_individual)
 
 # encode sentences (see helper_functions.py)
-encodings_could = encode_responses(responses_could)
-encodings_should = encode_responses(responses_should)
+encodings_could = encode_responses(tokenizer, responses_could)
+encodings_should = encode_responses(tokenizer, responses_should)
 
 # embed responses (see helper_functions.py)
-embeddings_could = embed_responses(encodings_could)
-embeddings_should = embed_responses(encodings_should)
+embeddings_could = embed_responses(model, encodings_could)
+embeddings_should = embed_responses(model, encodings_should)
 
 # run PCA (see helper_functions.py)
 x_could, y_could = run_PCA(embeddings_could)
