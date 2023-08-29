@@ -51,6 +51,7 @@ def calculate_metrics(sentence_embeddings, num_ctx, num_gen_total):
     pair_upper_triangle = extract_upper_triu(pair_list)
     return cosine_upper_triangle, pair_upper_triangle
 
+# this is a key piece
 def sort_responses(responses_raw, ctx, num_gen_individual):
     responses_sorted = []
     conditions_sorted = []

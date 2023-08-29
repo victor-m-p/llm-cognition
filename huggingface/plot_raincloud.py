@@ -14,16 +14,18 @@ model = AutoModel.from_pretrained(checkpoint)
 tokenizer = AutoTokenizer.from_pretrained(checkpoint)
 
 # setup
+## reproduce the submitted analysis
 temperature='1.0'
-inpath='../data/data_output/phillips_gpt3' 
-outpath='../fig/phillips_gpt3'
+inpath='../data/data_output/phillips_chatgpt' # '../data/data_output/phillips_gpt3'
+outpath='../fig/phillips_chatgpt' # '../fig/phillips_gpt3'
+contexts = ['Heinz', 'Josh', 'Brian', 'Liz', 'Mary', 'Brad']
+context_mapping={i: contexts[i] for i in range(len(contexts))}
 
 # match files (see helper_functions.py)
-files_could = match_files(os.path.join(inpath, f'*temp{temperature}_could_fix.json'))
-files_should = match_files(os.path.join(inpath, f'*temp{temperature}_should_fix.json'))
+files_could = match_files(os.path.join(inpath, f'*temp{temperature}_could.json'))
+files_should = match_files(os.path.join(inpath, f'*temp{temperature}_should.json'))
 
 # load files (see helper_functions.py)
-contexts = ['Heinz', 'Josh', 'Brian', 'Liz', 'Mary', 'Brad']
 responses_could = load_files(files_could, contexts)
 responses_should = load_files(files_should, contexts)
 
@@ -97,7 +99,8 @@ ax=pt.RainCloud(x = dx,
                 box_showfliers=False,
                 box_showmeans=True)
 plt.xlabel('Cosine Distance')
-plt.savefig(os.path.join(outpath, f'fig_png/raincloud_cosine_temp{temperature}.png'), bbox_inches='tight')
+plt.savefig(os.path.join(outpath, f'fig_png/raincloud_cosine_temp{temperature}.png'), 
+            bbox_inches='tight')
 
 dy='euclid_dist'
 f, ax = plt.subplots(figsize=(5, 7), dpi=300)
@@ -116,4 +119,5 @@ ax=pt.RainCloud(x = dx,
                 box_showfliers=False,
                 box_showmeans=True)
 plt.xlabel('Euclidean Distance')
-plt.savefig(os.path.join(outpath, f'fig_png/raincloud_euclid_temp{temperature}.png'), bbox_inches='tight')
+plt.savefig(os.path.join(outpath, f'fig_png/raincloud_euclid_temp{temperature}.png'), 
+            bbox_inches='tight')
