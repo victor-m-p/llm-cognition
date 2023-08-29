@@ -19,10 +19,10 @@ tokenizer = AutoTokenizer.from_pretrained(checkpoint)
 from helper_functions import *
 
 # setup
-num_per_iteration=20
-
-# load data
+# 1. gpt4.csv and n_per_iteration=20
+# 2. gpt4_subset.csv and n_per_iteration=18 (removeing first and last option)
 df = pd.read_csv('../data/data_cleaned/gpt4.csv')
+num_per_iteration=20
 
 # sort values
 df = df.sort_values(['condition', 'id', 'iteration', 'num'])
@@ -35,7 +35,7 @@ combinations = list(itertools.product(id_list, condition_list))
 ### 1. similarity against first generation ###
 for id, condition in combinations:
     # get responses
-    responses = df[(df['id'] == id) & (df['condition'] == condition)]['response'].tolist()
+    responses = df[(df['id'] == id) & (df['condition'] == condition)]['response_clean'].tolist()
     # encode sentences (see helper_functions.py)
     encodings = encode_responses(tokenizer, responses)
     # embed responses (see helper_functions.py)
@@ -79,7 +79,7 @@ tos = []
 cosine_distances_list = []
 for id, condition in combinations:
     # get responses
-    responses = df[(df['id'] == id) & (df['condition'] == condition)]['response'].tolist()
+    responses = df[(df['id'] == id) & (df['condition'] == condition)]['response_clean'].tolist()
     # encode sentences (see helper_functions.py)
     encodings = encode_responses(tokenizer, responses)
     # embed responses (see helper_functions.py)
@@ -124,7 +124,7 @@ for id, condition in combinations:
 ### 3. heatmat of similarity within generations between num ###
 for id, condition in combinations:
     # get responses
-    responses = df[(df['id'] == id) & (df['condition'] == condition)]['response'].tolist()
+    responses = df[(df['id'] == id) & (df['condition'] == condition)]['response_clean'].tolist()
     # encode sentences (see helper_functions.py)
     encodings = encode_responses(tokenizer, responses)
     # embed responses (see helper_functions.py)
