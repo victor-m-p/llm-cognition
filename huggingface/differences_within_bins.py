@@ -19,7 +19,7 @@ tokenizer = AutoTokenizer.from_pretrained(checkpoint)
 from helper_functions import *
 
 # setup
-num_per_iteration=20
+num_per_iteration=4
 
 # load data
 df = pd.read_csv('../data/data_cleaned/gpt4.csv')
@@ -70,56 +70,7 @@ for id, condition in combinations:
     fig, ax = plt.subplots()
     sns.boxplot(x='num', y='cosine_distance', data=df_plot)
     plt.title(f'{id} {condition}')
-    plt.savefig(f'../fig/gpt4/same_num_across_iter/{id}_{condition}.png')
-
-### 2. 
-iterations = []
-froms = []
-tos = []
-cosine_distances_list = []
-for id, condition in combinations:
-    # get responses
-    responses = df[(df['id'] == id) & (df['condition'] == condition)]['response'].tolist()
-    # encode sentences (see helper_functions.py)
-    encodings = encode_responses(tokenizer, responses)
-    # embed responses (see helper_functions.py)
-    embeddings = embed_responses(model, encodings)
-    # get cosine distances in the correct format 
-    num_rows = embeddings.shape[0]
-    num_iterations = int(num_rows / num_per_iteration)
-    reshaped_embeddings = embeddings.reshape(num_iterations, num_per_iteration, 384)
-        
-    # Loop through the 41 iterations
-    for iter_idx in range(num_iterations):
-        # Loop through the 20 columns to compute the pairwise cosine distance
-        for col_idx in range(num_per_iteration):
-            # The element we will compare from (always the first in each 20-element set)
-            from_element = reshaped_embeddings[iter_idx, 0, :].reshape(1, -1)
-            
-            # The element we will compare to
-            to_element = reshaped_embeddings[iter_idx, col_idx, :].reshape(1, -1)
-            
-            # Compute cosine distance
-            distance = cosine_distances(from_element, to_element)
-            
-            # Store in lists
-            iterations.append(iter_idx)
-            froms.append(0)  # Always comparing from the first element in each set
-            tos.append(col_idx)
-            cosine_distances_list.append(distance[0][0])
-
-    # Create the DataFrame
-    df_ = pd.DataFrame({
-        'cosine_distance': cosine_distances_list,
-        'iteration': iterations,
-        'from': froms,
-        'to': tos
-    })
-
-    fig, ax = plt.subplots()
-    sns.boxplot(x='to', y='cosine_distance', data=df_)
-    plt.xlabel('iteration')
-    plt.savefig(f'../fig/gpt4/dist_first_num/{id}_{condition}.png')
+    plt.savefig(f'../fig/gpt4/same_num_binned/{id}_{condition}.png')
 
 ### 3. heatmat of similarity within generations between num ###
 for id, condition in combinations:
@@ -175,4 +126,4 @@ for id, condition in combinations:
     plt.title(f"{id} {condition}")
     plt.xlabel("")
     plt.ylabel("")
-    plt.savefig(f'../fig/gpt4/heatmap/{id}_{condition}.png')
+    plt.savefig(f'../fig/gpt4/heatmap_binned/{id}_{condition}.png')
