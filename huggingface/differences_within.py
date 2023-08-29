@@ -69,7 +69,7 @@ for id, condition in combinations:
     fig, ax = plt.subplots()
     sns.boxplot(x='num', y='cosine_distance', data=df_plot)
     plt.title(f'{id} {condition}')
-    plt.savefig(f'../fig/gpt4/first_response/{id}_{condition}.png')
+    plt.savefig(f'../fig/gpt4/same_num_across_iter/{id}_{condition}.png')
 
 ### 3. heatmat of similarity within generations between num ###
 for id, condition in combinations:
