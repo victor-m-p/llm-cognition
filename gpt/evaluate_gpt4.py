@@ -21,11 +21,12 @@ presence=0.0
 
 @retry(wait=wait_random_exponential(min=1, max=200), stop=stop_after_attempt(10))
 def create_completion(context, model, num_generations, 
+                      max_tokens,
                       temperature, frequency, presence):
     completion = openai.ChatCompletion.create(
           model=model,
           messages=[{"role": "user", "content": context}],
-          max_tokens=600,
+          max_tokens=max_tokens,
           temperature=temperature,
           frequency_penalty=frequency,
           presence_penalty=presence,
@@ -53,39 +54,53 @@ def prepare_prompt(group):
 
 df = df.sort_values(by=['condition', 'id', 'iteration', 'shuffled'])
 all_prompts = df.groupby(['condition', 'id', 'iteration']).apply(prepare_prompt)
-
-# 1. makeshift shelter (4)-3
-# 2. higher ground (5)-4
-# 3. fire warmth (3)-2
-# 4. fresh water (2)-6
-# 5. ration remaining food (1)-5
-# 6. electronic devices (6)-1
-#all_prompts[0]
-#completion=create_completion(all_prompts[0], model, 1,
-#                             temperature, frequency, presence)
-#completion['choices'][0]['message']['content']
-
-# test that we get that ordering "forward":
-#background = "Brad and some friends are hiking through the mountains in the Canadian wilderness. A couple of days into their hike, Brad realizes that they are lost. He knows that a rescue crew could arrive before long, but it is extremely cold and they don't have much food or water left"
-#prompt = 'Please come up with 6 things that Brad could do in this situation. Number them like this: 1. one thing that they could do is ... and so on. Always begin each number with the phrase "one thing that they could do is"'
-#both = background + prompt
-#test = create_completion(both, model, 1,
-#                            temperature, frequency, presence)
-#test['choices'][0]['message']['content']
-#x = create_completion(all_prompts, model, 5,
-#                      temperature, frequency, presence)
-#x['choices'][4]['message']['content']
-
-generation_list_outer = []
-for prompt in all_prompts:
-    completion = create_completion(prompt, model, 1,
-                                   temperature, frequency, presence)
-    generation_list_inner = completion['choices'][0]['message']['content']
-    generation_list_outer.append(generation_list_inner)
-
-# check that this is not just complete bogus. 
-prompts=all_prompts.reset_index(name='prompt')
+prompts=all_prompts.to_frame(name='prompt').reset_index()
 prompts.to_csv('../data/data_output/gpt4_eval/prompts.csv', index=False)
+
+data = []
+for i, col in tqdm(prompts.iterrows()):
+    condition = col['condition']
+    id = col['id']
+    iteration = col['iteration']
+    prompt = col['prompt']
+    # this really should (almost) never fail
+    # gpt-4 should always (and to our knowledge does)
+    # stick to the required format.
+    # but just in case, we retry a few times
+    max_attempts = 3  # set the maximum number of retries
+    for attempt in range(max_attempts):
+        try:
+            completion = create_completion(prompt, 
+                                           model, 
+                                           1,
+                                           20, # should be 16 but to be safe
+                                           temperature,
+                                           frequency, 
+                                           presence)
+            completion = completion['choices'][0]['message']['content']
+            shuffled = [int(x.strip()) for x in completion.split(',')]
+            eval = range(1, 7)
+            break  # Exit the loop if we successfully create 'shuffled'
+        except ValueError:  # Handle the specific error that occurs when parsing fails
+            if attempt == max_attempts - 1:  # No more attempts left
+                print(f"Failed to generate completion for id {id}, iteration {iteration}.")
+                continue  # Skip this row and move to the next
+            else:
+                print("Retrying...")
+                
+    for s, e in zip(shuffled, eval):
+        row = {
+            'condition': condition,
+            'id': id,
+            'iteration': iteration,
+            'shuffled': s,
+            'eval': e
+        }
+        data.append(row)
+
+result_df = pd.DataFrame(data)
+result_df.to_csv('../data/data_output/gpt4_eval/results.csv', index=False)
+
 
 '''
 # average distance

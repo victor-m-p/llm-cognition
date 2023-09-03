@@ -8,6 +8,8 @@ import os
 from helper_functions import *
 import ptitprince as pt 
 from transformers import AutoTokenizer, AutoModel
+from sklearn.metrics import pairwise_distances
+from sklearn.metrics.pairwise import cosine_distances
 
 checkpoint = 'sentence-transformers/all-MiniLM-L12-v2' 
 model = AutoModel.from_pretrained(checkpoint) 
@@ -15,79 +17,72 @@ tokenizer = AutoTokenizer.from_pretrained(checkpoint)
 
 # setup
 ## reproduce the submitted analysis
-temperature='1.0'
-inpath='../data/data_output/phillips_chatgpt' # '../data/data_output/phillips_gpt3'
-outpath='../fig/phillips_chatgpt' # '../fig/phillips_gpt3'
-contexts = ['Heinz', 'Josh', 'Brian', 'Liz', 'Mary', 'Brad']
-context_mapping={i: contexts[i] for i in range(len(contexts))}
+df = pd.read_csv('../data/data_cleaned/gpt4_shuffled.csv')
+id_list = df['id'].unique().tolist()
 
-# match files (see helper_functions.py)
-files_could = match_files(os.path.join(inpath, f'*temp{temperature}_could.json'))
-files_should = match_files(os.path.join(inpath, f'*temp{temperature}_should.json'))
+# Create an empty list to store dictionaries
+records = []
 
-# load files (see helper_functions.py)
-responses_could = load_files(files_could, contexts)
-responses_should = load_files(files_should, contexts)
+# Assuming your id_list and helper functions are defined
+for id in id_list:
+    responses_could = df[(df['id']==id) & (df['condition'] == 'could')]['response_option'].tolist()
+    responses_should = df[(df['id']==id) & (df['condition'] == 'should')]['response_option'].tolist()
+    
+    # encode sentences (see helper_functions.py)
+    encodings_could = encode_responses(tokenizer, responses_could)
+    encodings_should = encode_responses(tokenizer, responses_should)
 
-# sort responses to a more useful format 
-# assumes that could and should have the same number of contexts
-num_ctx = len(contexts)
-num_gen_individual=int(len(responses_could[0])/num_ctx) # number of generations per context
-num_runs=len(responses_should) # number of times we have run the above
-responses_could, _ = sort_responses(responses_could,
-                                    contexts,
-                                    num_gen_individual)
-responses_should, _ = sort_responses(responses_should,
-                                     contexts,
-                                     num_gen_individual)
+    # embed responses (see helper_functions.py)
+    embeddings_could = embed_responses(model, encodings_could)
+    embeddings_should = embed_responses(model, encodings_should)
 
-# remove one-word responses because these are typically garbage (i.e. "1", where it is because it starts listing and hits full stop)
-responses_could = [s for s in responses_could if len(s.split()) > 1]
-responses_should = [s for s in responses_should if len(s.split()) > 1]
+    # calculate cosine and euclidean distance (see helper_functions.py)
+    cosine_dist_could = cosine_distances(embeddings_could)
+    cosine_dist_should = cosine_distances(embeddings_should)
+    
+    # Get the indices of the upper triangle without the diagonal
+    n_could = cosine_dist_could.shape[0]
+    n_should = cosine_dist_should.shape[0]
+    row_idx_could, col_idx_could = np.triu_indices(n_could, k=1)
+    row_idx_should, col_idx_should = np.triu_indices(n_should, k=1)
 
-# encode sentences (see helper_functions.py)
-encodings_could = encode_responses(tokenizer, responses_could)
-encodings_should = encode_responses(tokenizer, responses_should)
+    # Extract the values using the indices
+    upper_triangle_could = cosine_dist_could[row_idx_could, col_idx_could]
+    upper_triangle_should = cosine_dist_should[row_idx_should, col_idx_should]
 
-# embed responses (see helper_functions.py)
-embeddings_could = embed_responses(model, encodings_could)
-embeddings_should = embed_responses(model, encodings_should)
+    # Generate a list of dictionaries for the 'could' condition
+    could_records = [{'id': id, 'condition': 'could', 'cosine_dist': val} for val in upper_triangle_could.tolist()]
+    
+    # Generate a list of dictionaries for the 'should' condition
+    should_records = [{'id': id, 'condition': 'should', 'cosine_dist': val} for val in upper_triangle_should.tolist()]
+    
+    # Calculate cosine distance across conditions
+    cosine_dist_across = pairwise_distances(embeddings_could, embeddings_should, metric='cosine')
 
-# calculate cosine and euclidean distance (see helper_functions.py)
-num_gen_total=num_gen_individual*num_runs
-cosine_dist_could, euclid_dist_could = calculate_metrics(embeddings_could, 
-                                                         num_ctx, 
-                                                         num_gen_total)
-cosine_dist_should, euclid_dist_should = calculate_metrics(embeddings_should,
-                                                           num_ctx,
-                                                           num_gen_total)
+    # Flatten the 2D array to a 1D array and then to a list
+    across_list = cosine_dist_across.flatten().tolist()
 
-# get conditions
-n_per_context = int(len(cosine_dist_could)/num_ctx)
-context_list = get_pairwise_contexts(contexts, n_per_context)
+    # Generate a list of dictionaries for the 'across' condition
+    across_records = [{'id': id, 'condition': 'across', 'cosine_dist': val} for val in across_list]
 
-# gather dataframes 
-df_could = pd.DataFrame({
-    'context': context_list,
-    'cosine_dist': cosine_dist_could,
-    'euclid_dist': euclid_dist_could})
+    # Add the records to the main list
+    records.extend(across_records)
 
-df_should = pd.DataFrame({
-    'context': context_list,
-    'cosine_dist': cosine_dist_should,
-    'euclid_dist': euclid_dist_should})
-
-df_could['condition'] = 'could'
-df_should['condition'] = 'should'
-df_combined = pd.concat([df_could, df_should])
+    # Add the records to the main list
+    records.extend(could_records)
+    records.extend(should_records)
+    
+# Create a DataFrame from the list of dictionaries
+result_df = pd.DataFrame(records)
 
 # raincloud plots 
-dx = "context"; dy = "cosine_dist"; ort = "h"; pal = "Set2"; sigma = .05; dhue='condition'
+subset_df = result_df[result_df['condition'] != 'across']
+dx = "id"; dy = "cosine_dist"; ort = "h"; pal = "Set2"; sigma = .05; dhue='condition'
 f, ax = plt.subplots(figsize=(5, 7), dpi=300)
 ax=pt.RainCloud(x = dx, 
                 y = dy, 
                 hue = dhue, 
-                data = df_combined, 
+                data = subset_df, 
                 palette = pal, 
                 bw = sigma,
                 width_viol = .7, 
@@ -99,25 +94,102 @@ ax=pt.RainCloud(x = dx,
                 box_showfliers=False,
                 box_showmeans=True)
 plt.xlabel('Cosine Distance')
-plt.savefig(os.path.join(outpath, f'fig_png/raincloud_cosine_temp{temperature}.png'), 
-            bbox_inches='tight')
+plt.savefig('../fig/gpt4/raincloud/cosine_grouped.png', bbox_inches='tight')
+plt.close()
 
-dy='euclid_dist'
+dx = "id"; dy = "cosine_dist"; ort = "h"; pal = "Set2"; sigma = .05; dhue='condition'
 f, ax = plt.subplots(figsize=(5, 7), dpi=300)
 ax=pt.RainCloud(x = dx, 
                 y = dy, 
                 hue = dhue, 
-                data = df_combined, 
+                data = result_df, 
                 palette = pal, 
                 bw = sigma,
                 width_viol = .7, 
                 ax = ax, 
                 orient = ort, 
-                alpha = .7, # alpha of distributions (maybe plots)
+                alpha = .7, 
                 dodge = True,
                 point_size=0.1,
                 box_showfliers=False,
                 box_showmeans=True)
-plt.xlabel('Euclidean Distance')
-plt.savefig(os.path.join(outpath, f'fig_png/raincloud_euclid_temp{temperature}.png'), 
-            bbox_inches='tight')
+plt.xlabel('Cosine Distance')
+plt.savefig('../fig/gpt4/raincloud/cosine_grouped_across.png', bbox_inches='tight')
+
+### divergence over could/should and num ###
+# Create an empty list to store dictionaries
+records = []
+
+# Assuming your helper functions are defined
+unique_groups = df.drop_duplicates(subset=['id', 'num'])[['id', 'num']]
+
+for _, group in unique_groups.iterrows():
+    id, num = group['id'], group['num']
+    
+    responses_could = df[(df['id']==id) & (df['num']==num) & (df['condition'] == 'could')]['response_option'].tolist()
+    responses_should = df[(df['id']==id) & (df['num']==num) & (df['condition'] == 'should')]['response_option'].tolist()
+    
+    # encode sentences (see helper_functions.py)
+    encodings_could = encode_responses(tokenizer, responses_could)
+    encodings_should = encode_responses(tokenizer, responses_should)
+
+    # embed responses (see helper_functions.py)
+    embeddings_could = embed_responses(model, encodings_could)
+    embeddings_should = embed_responses(model, encodings_should)
+
+    # calculate cosine and euclidean distance (see helper_functions.py)
+    cosine_dist_could = cosine_distances(embeddings_could)
+    cosine_dist_should = cosine_distances(embeddings_should)
+    
+    # Get the indices of the upper triangle without the diagonal
+    n_could = cosine_dist_could.shape[0]
+    n_should = cosine_dist_should.shape[0]
+    row_idx_could, col_idx_could = np.triu_indices(n_could, k=1)
+    row_idx_should, col_idx_should = np.triu_indices(n_should, k=1)
+
+    # Extract the values using the indices
+    upper_triangle_could = cosine_dist_could[row_idx_could, col_idx_could]
+    upper_triangle_should = cosine_dist_should[row_idx_should, col_idx_should]
+
+    # Generate a list of dictionaries for the 'could' condition
+    could_records = [{'id': id, 'num': num, 'condition': 'could', 'cosine_dist': val} for val in upper_triangle_could.tolist()]
+    
+    # Generate a list of dictionaries for the 'should' condition
+    should_records = [{'id': id, 'num': num, 'condition': 'should', 'cosine_dist': val} for val in upper_triangle_should.tolist()]
+    
+    # Calculate cosine distance across conditions
+    cosine_dist_across = pairwise_distances(embeddings_could, embeddings_should, metric='cosine')
+
+    # Flatten the 2D array to a 1D array and then to a list
+    across_list = cosine_dist_across.flatten().tolist()
+
+    # Generate a list of dictionaries for the 'across' condition
+    across_records = [{'id': id, 'num': num, 'condition': 'across', 'cosine_dist': val} for val in across_list]
+    
+    # Add the records to the main list
+    records.extend(across_records)
+
+    # Add the records to the main list
+    records.extend(could_records)
+    records.extend(should_records)
+
+# Create a DataFrame from the list of dictionaries
+result_df = pd.DataFrame(records)
+
+# divergence plot;
+import seaborn as sns 
+across_df = result_df[result_df['condition'] == 'across']
+sns.lineplot(data=across_df, x='num', y='cosine_dist', hue='id')
+plt.title('Cosine Distance Across Conditions')
+plt.savefig('../fig/gpt4/raincloud/cosine_across.png')
+plt.close()
+could_df = result_df[result_df['condition'] == 'could']
+sns.lineplot(data=could_df, x='num', y='cosine_dist', hue='id')
+plt.title('Cosine Distance Within Condition: Could')
+plt.savefig('../fig/gpt4/raincloud/cosine_could.png')
+plt.close()
+should_df = result_df[result_df['condition'] == 'should']
+plt.title('Cosine Distance Within Condition: Should')
+sns.lineplot(data=should_df, x='num', y='cosine_dist', hue='id')
+plt.savefig('../fig/gpt4/raincloud/cosine_should.png')
+plt.close()
