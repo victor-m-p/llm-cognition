@@ -19,8 +19,8 @@ tokenizer = AutoTokenizer.from_pretrained(checkpoint)
 # setup 
 # 1. gpt4.csv and n_per_iteration=20
 # 2. gpt4_subset.csv and n_per_iteration=18 (removeing first and last option)
-df = pd.read_csv('../data/data_cleaned/gpt4_subset.csv')
-n_per_iteration=18
+df = pd.read_csv('../data/data_cleaned/gpt4_shuffled.csv')
+n_per_iteration=6
 
 # function to select dissimilar points (for labeling)
 def label_points(df): 
@@ -102,7 +102,7 @@ for vignette in unique_vignettes:
     df_pca = pd.DataFrame({
         'x': x_temp,
         'y': y_temp,
-        'context': ['Mary']*n_per_condition + ['Mary']*n_per_condition,
+        'context': [vignette]*n_per_condition + [vignette]*n_per_condition,
         'condition': ['could']*n_per_condition + ['should']*n_per_condition,
         'response_clean': responses_could + responses_should,
         'num': list(range(n_per_iteration)) * n_iterations * 2})
@@ -136,8 +136,9 @@ for vignette in unique_vignettes:
     plt.savefig(f'../fig/gpt4/pca_could_should/{vignette}_{n_per_iteration}.png')
     
 
-## Mary (early vs. late)
-df_ = df[df['id']=='Mary']
+## Liz ##
+id = 'Liz'
+df_ = df[df['id']==id]
 df_ = equalize_conditions(df_)
 
 # embed and encode
@@ -161,78 +162,7 @@ condition_order = ['could']*int((n_per_condition/2)) + ['should']*int((n_per_con
 df_pca = pd.DataFrame({
     'x': x_temp,
     'y': y_temp,
-    'context': ['Mary']*n_per_condition + ['Mary']*n_per_condition,
-    'condition': ['could']*n_per_condition + ['should']*n_per_condition,
-    'responses': responses_could + responses_should,
-    'num': list(range(n_per_iteration)) * n_iterations * 2})
-
-fig, ax = plt.subplots(figsize=(8, 6)) 
-sns.scatterplot(data=df_pca,
-                x=df_pca['x'],
-                y=df_pca['y'],
-                hue='num',
-                alpha=0.5)
-
-# split the data in two;
-
-df_early = df_pca[(df_pca['x'] < -0.2) | (df_pca['y'] < -0.3)]
-df_late = df_pca[(df_pca['x'] > -0.2) & (df_pca['y'] > -0.3)]
-
-# here we do have a large difference
-df_early['num'].mean()
-df_late['num'].mean()
-
-pd.set_option('display.max_colwidth', None)
-df_early.head(10)
-
-''' more early responses 
-explain situation
-email copy or picture of homework
-asking for help or extension
-borrow copy from friend or older sibling
-'''
-
-df_late.head(20)
-
-''' more late responses
-cry or show distress to get sympathy
-try to impress teacher to get partial credit
-quick recreation in lunch break
-write reflection (very vague)
-use personal tech gadgets?
-'''
-
-# in genereal there are more specific and
-# good responses in the early stuff, and 
-# more trash in the late stuff, but it is also
-# not super clean. 
-
-## Josh (could vs. should)
-df_ = df[df['id']=='Josh']
-df_ = equalize_conditions(df_)
-
-# embed and encode
-responses_could = df_[df_['condition']=='could']['response_clean'].tolist()
-responses_should = df_[df_['condition']=='should']['response_clean'].tolist()
-
-encodings_could = encode_responses(tokenizer, responses_could)
-encodings_should = encode_responses(tokenizer, responses_should)
-
-embeddings_could = embed_responses(model, encodings_could)
-embeddings_should = embed_responses(model, encodings_should)
-
-embeddings_temp = torch.cat((embeddings_could, embeddings_should), 0)
-x_temp, y_temp = run_PCA(embeddings_temp)
-
-n_per_condition = embeddings_could.shape[0]
-n_iterations = int(n_per_condition/n_per_iteration)
-
-condition_order = ['could']*int((n_per_condition/2)) + ['should']*int((n_per_condition/2))
-
-df_pca = pd.DataFrame({
-    'x': x_temp,
-    'y': y_temp,
-    'context': ['Josh']*n_per_condition + ['Josh']*n_per_condition,
+    'context': [id]*n_per_condition + [id]*n_per_condition,
     'condition': ['could']*n_per_condition + ['should']*n_per_condition,
     'responses': responses_could + responses_should,
     'num': list(range(n_per_iteration)) * n_iterations * 2})
@@ -244,47 +174,207 @@ sns.scatterplot(data=df_pca,
                 hue='condition',
                 alpha=0.5)
 
-df_should = df_pca[df_pca['y'] > 0]
-df_could = df_pca[df_pca['y'] < 0]
+# split the data in two;
+df_left_top = df_pca[(df_pca['y'] > 0.15) & 
+                     (df_pca['x'] < -0.2)]
 
-df_should.groupby('condition')['x'].count()
-df_could.groupby('condition')['x'].count()
+df_right_top = df_pca[(df_pca['y'] > -0.1) & 
+                      (df_pca['x'] > 0.3)]
 
-df_should = df_should.sample(frac=1).reset_index(drop=True)
-df_should.head(20)
+main_bulk = df_pca[(df_pca['y'] < 0.2) &
+                   (df_pca['x'] > -0.4) & 
+                   (df_pca['x'] < 0.25)]
 
-''' more should responses 
-inform airport and check possibility of delaying
-ensure they can board quickly
-fix car himself
-research nearby hostels / hotels 
-'''
+pd.set_option('display.max_colwidth', None)
+df_left_top.head(10) # could: do something else (e.g. exercise outside, go back to work)
+df_right_top.head(10) # should: renew, promotion, negotiate 
+main_bulk.head(10) # free trial, day pass, guest pass (but also some overlap with others)
+df_left_top.groupby('condition').count() # 144-9
+df_right_top.groupby('condition').count() # 196-29
+main_bulk.groupby('condition').count() # almost exactly equal
 
-df_could = df_could.sample(frac=1).reset_index(drop=True)
-df_could.head(20)
+## Josh ##
+id = 'Josh'
+df_ = df[df['id']==id]
+df_ = equalize_conditions(df_)
 
-''' more could responses 
-put on hazard lights around car
-hitchhike to airport
-ride-sharing app (e.g. uber) or negotiate with private drivers
-hire bicycle
-'''
+# embed and encode
+responses_could = df_[df_['condition']=='could']['response_clean'].tolist()
+responses_should = df_[df_['condition']=='should']['response_clean'].tolist()
 
-# overall *could* responses try more to actually
-# get to the airport, whereas there are more of the
-# should responses that give up and start planning
-# forward (e.g., hotel for night, inform people, etc.)
-# but not super clean cut (two large clusters). 
-# also more trash in the "should", e.g. use the 
-# idle time productively to plan ahead. 
-# there are probably just not a lot of good "should"
-# responses in this case and I think this is driving
-# the slight divergence. 
+encodings_could = encode_responses(tokenizer, responses_could)
+encodings_should = encode_responses(tokenizer, responses_should)
 
-# three things:
-## 1. qualitative
-## 2. across iterations
-## 3. could should divergence
-## problem: first option and last option have scripts. 
-## would be tricky to fix this I think.
-## problem: mentioning NAME does A TON!
+embeddings_could = embed_responses(model, encodings_could)
+embeddings_should = embed_responses(model, encodings_should)
+
+embeddings_temp = torch.cat((embeddings_could, embeddings_should), 0)
+x_temp, y_temp = run_PCA(embeddings_temp)
+
+n_per_condition = embeddings_could.shape[0]
+n_iterations = int(n_per_condition/n_per_iteration)
+
+condition_order = ['could']*int((n_per_condition/2)) + ['should']*int((n_per_condition/2))
+
+df_pca = pd.DataFrame({
+    'x': x_temp,
+    'y': y_temp,
+    'context': [id]*n_per_condition + [id]*n_per_condition,
+    'condition': ['could']*n_per_condition + ['should']*n_per_condition,
+    'responses': responses_could + responses_should,
+    'num': list(range(n_per_iteration)) * n_iterations * 2})
+
+fig, ax = plt.subplots(figsize=(8, 6)) 
+sns.scatterplot(data=df_pca,
+                x=df_pca['x'],
+                y=df_pca['y'],
+                hue='condition',
+                alpha=0.5)
+
+# split the data in two;
+right_top = df_pca[(df_pca['y'] > 0.2) & 
+                   (df_pca['x'] > 0.3)]
+
+right_top.groupby('condition').count() # 58-0
+right_top.head(10) # mainly about remaining calm, not panicking.
+
+bottom_left = df_pca[(df_pca['y'] < 0.1) & 
+                     (df_pca['x'] < -0.2)]
+
+bottom_left.groupby('condition').count() # 260-112
+bottom_left.head(10) # all about getting a ride (friend, ride sharing, taxi)
+
+top_batch = df_pca[(df_pca['y'] > 0.4) & 
+                   (df_pca['x'] < 0.1)]
+
+top_batch.groupby('condition').count() # majority should but not strong
+top_batch.head(10) # all about contacting the airline (reschedule, explain situation, etc.)
+
+## Brad ##
+id = 'Brad'
+df_ = df[df['id']==id]
+df_ = equalize_conditions(df_)
+
+# embed and encode
+responses_could = df_[df_['condition']=='could']['response_clean'].tolist()
+responses_should = df_[df_['condition']=='should']['response_clean'].tolist()
+
+encodings_could = encode_responses(tokenizer, responses_could)
+encodings_should = encode_responses(tokenizer, responses_should)
+
+embeddings_could = embed_responses(model, encodings_could)
+embeddings_should = embed_responses(model, encodings_should)
+
+embeddings_temp = torch.cat((embeddings_could, embeddings_should), 0)
+x_temp, y_temp = run_PCA(embeddings_temp)
+
+n_per_condition = embeddings_could.shape[0]
+n_iterations = int(n_per_condition/n_per_iteration)
+
+condition_order = ['could']*int((n_per_condition/2)) + ['should']*int((n_per_condition/2))
+
+df_pca = pd.DataFrame({
+    'x': x_temp,
+    'y': y_temp,
+    'context': [id]*n_per_condition + [id]*n_per_condition,
+    'condition': ['could']*n_per_condition + ['should']*n_per_condition,
+    'responses': responses_could + responses_should,
+    'num': list(range(n_per_iteration)) * n_iterations * 2})
+
+fig, ax = plt.subplots(figsize=(8, 6)) 
+sns.scatterplot(data=df_pca,
+                x=df_pca['x'],
+                y=df_pca['y'],
+                hue='num',
+                alpha=0.5)
+
+# split the data
+left_mid = df_pca[(df_pca['y'] > -0.1) &
+                  (df_pca['y'] < 0.3) & 
+                  (df_pca['x'] < -0.2)] 
+left_mid['num'].mean() # 1.19 (0-indexed)
+left_mid # ration, gather food, conserve energy, assess situation, etc.
+
+# lower cluster
+low_mid = df_pca[(df_pca['y'] < 0) & 
+                 (df_pca['x'] > -0.3) & 
+                 (df_pca['x'] < 0.15)]
+low_mid # shelter, warmth, fire (also some overlap with first)
+low_mid['num'].mean() # 2.47
+
+# right cluster
+right_mid = df_pca[(df_pca['x'] > 0.2) & 
+                   (df_pca['y'] > -0.3) & 
+                   (df_pca['y'] < 0.2)]
+right_mid['num'].mean() # 2.87
+right_mid.head(10) # signal for help, create SOS signal, also fire (but here mainly for signal)
+
+# top cluster
+top_mid = df_pca[(df_pca['y'] > 0.3) & 
+                 (df_pca['x'] > -0.2) & 
+                 (df_pca['x'] < 0.2)]
+
+top_mid['num'].mean() # 2.9
+top_mid.head(10) # staying together, remain calm, morale, etc.
+
+
+### try to make the nice plot ###
+id = 'Brad'
+df_ = df[df['id']==id]
+df_ = equalize_conditions(df_)
+
+# embed and encode
+responses_could = df_[df_['condition']=='could']['response_clean'].tolist()
+responses_should = df_[df_['condition']=='should']['response_clean'].tolist()
+
+encodings_could = encode_responses(tokenizer, responses_could)
+encodings_should = encode_responses(tokenizer, responses_should)
+
+embeddings_could = embed_responses(model, encodings_could)
+embeddings_should = embed_responses(model, encodings_should)
+
+embeddings_temp = torch.cat((embeddings_could, embeddings_should), 0)
+x_temp, y_temp = run_PCA(embeddings_temp)
+
+n_per_condition = embeddings_could.shape[0]
+n_iterations = int(n_per_condition/n_per_iteration)
+
+condition_order = ['could']*int((n_per_condition/2)) + ['should']*int((n_per_condition/2))
+
+
+
+df_pca = pd.DataFrame({
+    'x': x_temp,
+    'y': y_temp,
+    'context': [id]*n_per_condition + [id]*n_per_condition,
+    'condition': ['could']*n_per_condition + ['should']*n_per_condition,
+    'responses': responses_could + responses_should,
+    'num': list(range(n_per_iteration)) * n_iterations * 2})
+
+n_per_iteration = 6
+n_iterations = 100
+df_pca['iter'] = (df_pca.index // n_per_iteration) % n_iterations
+
+fig, ax = plt.subplots(figsize=(8, 6)) 
+sns.scatterplot(data=df_pca,
+                x=df_pca['x'],
+                y=df_pca['y'],
+                hue='num',
+                alpha=0.5)
+
+specific_condition = 'could'
+specific_iter = 5
+
+# Filter data for the path line
+df_path = df_pca[(df_pca['condition'] == specific_condition) & (df_pca['iter'] == specific_iter)]
+
+# Add path line (in black)
+ax.plot(df_path['x'], df_path['y'], color='black', marker='o')
+
+# Highlight start point (in black) and annotate
+start_point = df_path[df_path['num'] == 0]
+ax.scatter(start_point['x'], start_point['y'], color='black', zorder=5)
+ax.annotate('Start', (start_point['x'].values[0], start_point['y'].values[0]), textcoords="offset points", xytext=(0,10), ha='center')
+
+# Show the plot
+plt.show()
