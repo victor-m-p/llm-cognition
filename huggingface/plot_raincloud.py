@@ -18,6 +18,9 @@ tokenizer = AutoTokenizer.from_pretrained(checkpoint)
 # setup
 ## reproduce the submitted analysis
 df = pd.read_csv('../data/data_cleaned/gpt4_shuffled.csv')
+df = df.sort_values(by=['id', 'condition', 'iteration', 'num'])
+df['num'] = df['num'] + 1
+df['iteration'] = df['iteration'] + 1
 id_list = df['id'].unique().tolist()
 
 # Create an empty list to store dictionaries
@@ -25,8 +28,8 @@ records = []
 
 # Assuming your id_list and helper functions are defined
 for id in id_list:
-    responses_could = df[(df['id']==id) & (df['condition'] == 'could')]['response_option'].tolist()
-    responses_should = df[(df['id']==id) & (df['condition'] == 'should')]['response_option'].tolist()
+    responses_could = df[(df['id']==id) & (df['condition'] == 'could')]['response_clean'].tolist()
+    responses_should = df[(df['id']==id) & (df['condition'] == 'should')]['response_clean'].tolist()
     
     # encode sentences (see helper_functions.py)
     encodings_could = encode_responses(tokenizer, responses_could)
@@ -126,8 +129,8 @@ unique_groups = df.drop_duplicates(subset=['id', 'num'])[['id', 'num']]
 for _, group in unique_groups.iterrows():
     id, num = group['id'], group['num']
     
-    responses_could = df[(df['id']==id) & (df['num']==num) & (df['condition'] == 'could')]['response_option'].tolist()
-    responses_should = df[(df['id']==id) & (df['num']==num) & (df['condition'] == 'should')]['response_option'].tolist()
+    responses_could = df[(df['id']==id) & (df['num']==num) & (df['condition'] == 'could')]['response_clean'].tolist()
+    responses_should = df[(df['id']==id) & (df['num']==num) & (df['condition'] == 'should')]['response_clean'].tolist()
     
     # encode sentences (see helper_functions.py)
     encodings_could = encode_responses(tokenizer, responses_could)

@@ -22,6 +22,7 @@ from helper_functions import *
 # 1. gpt4.csv and n_per_iteration=20
 # 2. gpt4_subset.csv and n_per_iteration=18 (removeing first and last option)
 df = pd.read_csv('../data/data_cleaned/gpt4_shuffled.csv')
+df['num'] = df['num']+1
 num_per_iteration=6
 
 # sort values
@@ -35,7 +36,7 @@ combinations = list(itertools.product(id_list, condition_list))
 ### 1. similarity against first generation ###
 for id, condition in combinations:
     # get responses
-    responses = df[(df['id'] == id) & (df['condition'] == condition)]['response_option'].tolist()
+    responses = df[(df['id'] == id) & (df['condition'] == condition)]['response_clean'].tolist()
     # encode sentences (see helper_functions.py)
     encodings = encode_responses(tokenizer, responses)
     # embed responses (see helper_functions.py)
@@ -69,8 +70,11 @@ for id, condition in combinations:
     # Plot 
     fig, ax = plt.subplots()
     sns.boxplot(x='num', y='cosine_distance', data=df_plot)
-    plt.title(f'{id} {condition}')
+    plt.ylabel('Cosine Distance')
+    plt.xlabel('Generation Number')
+    #plt.title(f'{id} {condition}')
     plt.savefig(f'../fig/gpt4/same_num_across_iter/{id}_{condition}.png')
+    plt.savefig(f'../fig/gpt4/same_num_across_iter/{id}_{condition}.pdf')
 
 ### 2. 
 iterations = []
@@ -79,7 +83,7 @@ tos = []
 cosine_distances_list = []
 for id, condition in combinations:
     # get responses
-    responses = df[(df['id'] == id) & (df['condition'] == condition)]['response_option'].tolist()
+    responses = df[(df['id'] == id) & (df['condition'] == condition)]['response_clean'].tolist()
     # encode sentences (see helper_functions.py)
     encodings = encode_responses(tokenizer, responses)
     # embed responses (see helper_functions.py)
@@ -105,7 +109,7 @@ for id, condition in combinations:
             # Store in lists
             iterations.append(iter_idx)
             froms.append(0)  # Always comparing from the first element in each set
-            tos.append(col_idx)
+            tos.append(col_idx+1)
             cosine_distances_list.append(distance[0][0])
 
     # Create the DataFrame
@@ -118,13 +122,15 @@ for id, condition in combinations:
 
     fig, ax = plt.subplots()
     sns.boxplot(x='to', y='cosine_distance', data=df_)
-    plt.xlabel('iteration')
+    plt.xlabel('Iteration')
+    plt.ylabel('Cosine Distance')
     plt.savefig(f'../fig/gpt4/dist_first_num/{id}_{condition}.png')
+    plt.savefig(f'../fig/gpt4/dist_first_num/{id}_{condition}.pdf')
 
 ### 3. heatmat of similarity within generations between num ###
 for id, condition in combinations:
     # get responses
-    responses = df[(df['id'] == id) & (df['condition'] == condition)]['response_option'].tolist()
+    responses = df[(df['id'] == id) & (df['condition'] == condition)]['response_clean'].tolist()
     # encode sentences (see helper_functions.py)
     encodings = encode_responses(tokenizer, responses)
     # embed responses (see helper_functions.py)
@@ -176,3 +182,4 @@ for id, condition in combinations:
     plt.xlabel("")
     plt.ylabel("")
     plt.savefig(f'../fig/gpt4/heatmap/{id}_{condition}.png')
+    plt.savefig(f'../fig/gpt4/heatmap/{id}_{condition}.pdf')
