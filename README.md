@@ -2,12 +2,18 @@
 Code for "Large Language Models in the Labyrinth: Possibility Spaces and Moral Constraints" submitted 23-06-2023 to Possibility Studies and Society.
 
 Tested on POP!\_OS 22.04 LTS with NVIDIA GA107M (GeForce RTX 3050 Ti Mobile) graphics card.
-Parts of the code will require modification to run on other OS and graphics. 
 
 # Overview
-Data generated in ```gpt/generate_branch_completion.py```
+## Data Generation
+Data generated in ```gpt/generate_gpt4.py```
+Preprocessed in ```gpt/preprocessing.py```
+Evaluation in ```gpt/evaluate_gpt4.py```
 
-Plots generated in ```huggingface/plot_raincloud.py```, ```huggingface/plot_PCA_within_context.py```
+## Results Generation
+PCA plots in ```huggingface/plot_PCA.py```
+Raincloud pplot in ```huggingface/plot_raincloud.py```
+Rank order correlation in ```huggingface/rank_order_corr.py```
+Evaluation of generation number ```huggingface/generation_number.py```
 
 # Set up environments
 

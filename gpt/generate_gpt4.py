@@ -1,27 +1,27 @@
 '''
-gpt-4
+VMP 2023-09-11:
+This script is used to generate the data from GPT-4
 '''
 
 import openai 
 import os 
 from dotenv import load_dotenv
 import json 
-from tqdm import tqdm 
 import re 
 from tenacity import (
     retry,
     stop_after_attempt,
     wait_random_exponential,
-    wait_incrementing
 )
 import time 
 
+# setup 
 outpath='../data/data_output/gpt4_new/'
 inpath='../data/data_input/phillips2017.json'
 model='gpt-4'
-condition='could' # chould
-num_generations=10 # per time 
-num_runs=10 # number of times (set this up) 
+condition='could' # also run with 'should'
+num_generations=10 
+num_runs=10  
 temperature=0.8
 frequency=0.0
 presence=0.0
@@ -29,14 +29,17 @@ presence=0.0
 load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
+# quick function to ensure punctuation and space
 def ensure_punctuation_and_space(s):
     if not s.endswith('.'):
         s = s + '.'
     return s + ' '
 
+# load data
 with open(inpath) as user_file:
   phillips2017 = json.load(user_file)
   
+# wrangle data 
 vignettes = [phillips2017[key]['vignette'] for key in phillips2017.keys()]
 vignettes = [ensure_punctuation_and_space(s) for s in vignettes]
 prompts = ['Please come up with 6 things that Heinz could do in this situation. Number them like this: 1. one thing that they could do is ... and so on. Always begin each number with the phrase "one thing that they could do is"',
@@ -49,6 +52,7 @@ contexts = [background + prompt for background, prompt in zip(vignettes, prompts
 if condition == 'should':
     prompts = [re.sub('could', 'should', s) for s in prompts]
 
+# function to create completion
 @retry(wait=wait_random_exponential(min=1, max=200), stop=stop_after_attempt(10))
 def create_completion(context, model, num_generations, 
                       temperature, frequency, presence):
@@ -63,6 +67,7 @@ def create_completion(context, model, num_generations,
           )
     return completion 
 
+# run generation over all contexts
 ids = ['Heinz', 'Josh', 'Brian', 'Liz', 'Mary', 'Brad'] 
 num_total=num_generations*num_runs
 for num, prompt in enumerate(prompts):

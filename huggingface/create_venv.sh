@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-
 VENVNAME=hugenv
 
 python3.10 -m venv $VENVNAME

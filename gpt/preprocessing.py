@@ -1,10 +1,16 @@
+'''
+VMP 2023-09-11:
+This script is used to clean the data from GPT-4 (generated in generate_gpt4.py).
+We gender neutralize the responses; and we create a column with shuffled responses
+which is used for evaluation (evaluate_gpt4.py). 
+'''
 import json
 import pandas as pd 
 import re 
-import os 
 import numpy as np 
 import glob
 
+# match the files
 inpath = '../data/data_output/gpt4_new/gpt-4_n100*.json'
 filenames = glob.glob(inpath)
 
@@ -113,11 +119,6 @@ def replace_pronouns(text):
         text = re.sub(k, v, text, flags=re.IGNORECASE)
     return text
 
-# Create a new column with gender-neutralized text
+# Create a new column with gender-neutralized text and save
 df['response_clean'] = df['response_option'].apply(replace_pronouns)
-
-# save
 df.to_csv('../data/data_cleaned/gpt4_shuffled.csv', index=False)
-
-# nb:
-# still need to do the gender thing. 

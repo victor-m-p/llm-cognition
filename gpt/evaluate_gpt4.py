@@ -1,24 +1,28 @@
+'''
+VMP 2023-09-11:
+This script is used to evaluate the data from GPT-4
+'''
 import openai 
 import pandas as pd
 import os 
 from dotenv import load_dotenv
-import json 
 from tqdm import tqdm 
 import re 
 from tenacity import (
     retry,
     stop_after_attempt,
     wait_random_exponential,
-    wait_incrementing
 )
-import time 
 
+# setup 
 outpath='../data/data_output/gpt4_eval/'
 model='gpt-4'
 temperature=0.8
 frequency=0.0
 presence=0.0
+df = pd.read_csv('../data/data_cleaned/gpt4_shuffled.csv')
 
+# function to create completion
 @retry(wait=wait_random_exponential(min=1, max=200), stop=stop_after_attempt(10))
 def create_completion(context, model, num_generations, 
                       max_tokens,
@@ -34,11 +38,11 @@ def create_completion(context, model, num_generations,
           )
     return completion 
 
-df = pd.read_csv('../data/data_cleaned/gpt4_shuffled.csv')
-
+# setup
 load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
+# quick function to prepare prompt
 def prepare_prompt(group):
     vignette = group['vignette'].iloc[0]
     id = group['id'].iloc[0]
@@ -52,11 +56,13 @@ def prepare_prompt(group):
         full_prompt = re.sub('could', 'should', full_prompt)
     return full_prompt 
 
+# sort the data and save prompts for reference
 df = df.sort_values(by=['condition', 'id', 'iteration', 'shuffled'])
 all_prompts = df.groupby(['condition', 'id', 'iteration']).apply(prepare_prompt)
 prompts=all_prompts.to_frame(name='prompt').reset_index()
 prompts.to_csv('../data/data_output/gpt4_eval/prompts.csv', index=False)
 
+# loop over all generations, evaluate and save
 data = []
 for i, col in tqdm(prompts.iterrows()):
     condition = col['condition']
@@ -73,7 +79,7 @@ for i, col in tqdm(prompts.iterrows()):
             completion = create_completion(prompt, 
                                            model, 
                                            1,
-                                           20, # should be 16 but to be safe
+                                           20, # should always be 16 but to be safe
                                            temperature,
                                            frequency, 
                                            presence)
@@ -100,28 +106,3 @@ for i, col in tqdm(prompts.iterrows()):
 
 result_df = pd.DataFrame(data)
 result_df.to_csv('../data/data_output/gpt4_eval/results.csv', index=False)
-
-
-'''
-# average distance
-# ikke vanvittigt staerk correlation. 
-import numpy as np 
-distances = {}
-
-columns = ['num', 'shuffled', 'ranking']
-
-for i, col1 in enumerate(columns):
-    for j, col2 in enumerate(columns):
-        if i >= j:
-            continue
-        distance = np.mean(np.abs(test[col1] - test[col2]))
-        distances[f"{col1} - {col2}"] = distance
-
-# Print out the average distances between each pair of columns
-for pair, distance in distances.items():
-    print(f"Average distance between {pair}: {distance}")
-
-# 1.944 is completely random so 1.4-something is a weak signal. 
-# seems like it is using both the presentation order and the content.
-# so this is basically random which is weird. 
-'''
